@@ -8,16 +8,28 @@ def random_indices(dataset_len, selected_range):
 
 class LMSYS:
   # Set up LMSYS dataset; set subset_amount to -1 if the entire dataset is desired
-  def __init__(self, dataset_split, subset_amount, random_sample=True, toxicity_threshold=0.1):
+  def __init__(self, dataset_split, subset_amount, random_sample=True, toxicity_threshold=0.1, offset=0, language="English"):
     loaded_dataset = load_dataset("lmsys/lmsys-chat-1m")
-    dataset_len = len(loaded_dataset[dataset_split])
-    selected_range = subset_amount if subset_amount > -1 else dataset_len
+    total_dataset_len = len(loaded_dataset[dataset_split])
+
+    # If subset_amount is -1, select the entire dataset
+    if subset_amount == -1:
+      selected_range = total_dataset_len
+      offset = 0
+
+    # Slice the dataset according to the offset
+    selected_range = subset_amount 
+    offset_dataset = loaded_dataset[dataset_split].select(np.arange(total_dataset_len)[offset:])
 
     # Check if a random sample is desired
     use_random = (random_sample) and (subset_amount != -1)
-    indices = random_indices(dataset_len, selected_range) if use_random else range(selected_range)
+    indices = random_indices(len(offset_dataset), selected_range) if use_random else range(selected_range)
 
-    self.dataset = loaded_dataset[dataset_split].select(indices)
+    self.dataset = offset_dataset.select(indices)
+
+    # Filter dataset according to desired language
+    lang_idx = (np.array(self.dataset["language"]) == language)
+    self.dataset = self.dataset.select(np.arange(len(self.dataset))[lang_idx])
     
     # Filter data based on the OpenAI moderation scores to remove jailbreak prompts
     content_violations = []

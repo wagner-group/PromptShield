@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser(description='Predibase Fine-Tuned Model Evaluat
 
 # Model specifics
 available_models = ['prompt-injection-detection/1', 'prompt-injection-detection/2']
-parser.add_argument('--model-name', choices=available_models, default='prompt-injection-detection/2')
+parser.add_argument('--model-name', choices=available_models, default='prompt-injection-detection/3')
 
 # Evaluation specifics
 parser.add_argument('--dataset-name', choices=["lmsys", "natural-instructions", "ultrachat"], default="lmsys")
@@ -55,15 +55,19 @@ if args.model_name == "prompt-injection-detection/1":
 elif args.model_name == "prompt-injection-detection/2":
     base_model = "llama-3-70b-instruct"
     model_str = "model_v2"
+elif args.model_name == "prompt-injection-detection/3":
+    base_model = "llama-3-70b-instruct"
+    model_str = "model_v3"
 
 lorax_client = pb.deployments.client(base_model)
 print(f"Connected to Predibase client...\n")
 
 # Set up dataset
 # NOTE: Do we need an initial prompt like "instruction": "Follow the user's instructions to answer questions about the submitted content.", (from StruQ dataset)
-toxicity_threshold = 0.1
+toxicity_threshold = 0.01
+offset = 15000
 if args.dataset_name == "lmsys":
-    data_collection = LMSYS("train", 1500, random_sample=True, toxicity_threshold=toxicity_threshold)
+    data_collection = LMSYS("train", 1500, random_sample=True, toxicity_threshold=toxicity_threshold, offset=offset)
     if toxicity_threshold < 1.0:
         dataset_str = f"lmsys/content_moderated/thre_{toxicity_threshold * 100:g}_percent"
     else:
@@ -74,13 +78,14 @@ elif args.dataset_name == "natural-instructions":
     dataset_str = "natural-instructions"
 elif args.dataset_name == "ultrachat":
     data_collection = UltraChat("test_sft", 1500)
+    dataset_str = "ultrachat"
 
 dataset = data_collection.get_dataset()
 print(f"There are a total of {len(dataset)} datapoints...\n")
 
 # Create a folder in which to save results
 todaystring = date.today().strftime("%Y-%m-%d")
-save_dir = f"dataset_evals/{dataset_str}/{todaystring}/trial_{args.trial}_{model_str}/"
+save_dir = f"dataset_evals/{dataset_str}/{todaystring}/trial_{args.trial}_{model_str}_offset_{offset}/"
 Path(save_dir).mkdir(parents=True, exist_ok=True)
 
 # Query the fine-tuned model with each of the datapoints
@@ -91,13 +96,21 @@ for index, data in enumerate(dataset):
     if index % 100 == 0:
         print(f"[{index}/{len(dataset)}]")
 
+        # Save an intermediate copy of the results dict
+        with open(save_dir + "results.json", "w") as outfile: 
+            json.dump(results, outfile, indent=2)
+
     # NOTE: Should we just ignore the assistant 'content' part of the data and just focus on the 'user' content?
     user_prompt, prompt_id = data_collection.extract_prompt(data)
     input_prompt = formatted_prompt(user_prompt)
-    response = lorax_client.generate(input_prompt, adapter_id="prompt-injection-detection/2", max_new_tokens=100).generated_text
+    response = lorax_client.generate(input_prompt, adapter_id=args.model_name, max_new_tokens=100).generated_text
 
     # Incorporate the response for this conversation_id in a dictionary
     results[prompt_id] = {"user_prompt": user_prompt, "response": response}
+
+# Save the final copy of the results dict
+with open(save_dir + "results.json", "w") as outfile: 
+    json.dump(results, outfile, indent=2)
 
 # Parse through fine-tuned model results
 preds = []
@@ -110,9 +123,6 @@ for key in results:
         value = "2"
 
     preds.append(int(value))
-
-with open(save_dir + "results.json", "w") as outfile: 
-    json.dump(results, outfile, indent=2)
 
 # Visualization of results
 preds = np.array(preds)  
