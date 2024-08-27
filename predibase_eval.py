@@ -16,11 +16,12 @@ from utils.benign_datasets import LMSYS, UltraChat, NaturalInstructions
 parser = argparse.ArgumentParser(description='Predibase Fine-Tuned Model Evaluation')
 
 # Model specifics
-available_models = ['prompt-injection-detection/1', 'prompt-injection-detection/2']
-parser.add_argument('--model-name', choices=available_models, default='prompt-injection-detection/3')
+available_models = ['prompt-injection-detection/1', 'prompt-injection-detection/2', 'prompt-injection-detection/3', 'prompt-injection-detection/12']
+parser.add_argument('--model-name', choices=available_models, default='prompt-injection-detection/12')
 
 # Evaluation specifics
 parser.add_argument('--dataset-name', choices=["lmsys", "natural-instructions", "ultrachat"], default="lmsys")
+parser.add_argument('--offset', default=0)
 parser.add_argument('--trial', default=1)
 
 args = parser.parse_args()
@@ -58,6 +59,9 @@ elif args.model_name == "prompt-injection-detection/2":
 elif args.model_name == "prompt-injection-detection/3":
     base_model = "llama-3-70b-instruct"
     model_str = "model_v3"
+elif args.model_name == "prompt-injection-detection/12":
+    base_model = "llama-3-70b-instruct"
+    model_str = "model_v12"
 
 lorax_client = pb.deployments.client(base_model)
 print(f"Connected to Predibase client...\n")
@@ -65,7 +69,7 @@ print(f"Connected to Predibase client...\n")
 # Set up dataset
 # NOTE: Do we need an initial prompt like "instruction": "Follow the user's instructions to answer questions about the submitted content.", (from StruQ dataset)
 toxicity_threshold = 0.01
-offset = 15000
+offset = int(args.offset)
 if args.dataset_name == "lmsys":
     data_collection = LMSYS("train", 1500, random_sample=True, toxicity_threshold=toxicity_threshold, offset=offset)
     if toxicity_threshold < 1.0:
