@@ -9,7 +9,6 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from utils.benign_datasets import LMSYS, UltraChat, NaturalInstructions
 
 import torch
-from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 parser = argparse.ArgumentParser(description='PromptGuard Model Evaluation')
