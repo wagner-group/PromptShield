@@ -64,3 +64,41 @@ class ClassificationDataset():
     encoded_dataset = torch.utils.data.TensorDataset(encoded_texts['input_ids'], encoded_texts['attention_mask'], labels)
 
     return encoded_dataset
+  
+
+  # Abstract class which represents a training task for a HuggingFace dataset
+# Inspired by: https://pytorch.org/vision/main/_modules/torchvision/datasets/vision.html#VisionDataset
+class TrainingDataset():
+  def __init__(self, dataset, dataset_split, subset_amount, random_sample=True, offset=0):
+    total_dataset_len = len(dataset[dataset_split])
+
+    # Select the entire dataset if subset_amount is -1
+    selected_range = subset_amount 
+    if subset_amount == -1:
+      selected_range = total_dataset_len
+      offset = 0
+
+    # Slice the dataset according to the offset
+    offset_dataset = dataset[dataset_split].select(np.arange(total_dataset_len)[offset:])
+
+    # Check if a random sample is desired
+    use_random = (random_sample) and (subset_amount != -1)
+    indices = random_indices(len(offset_dataset), selected_range) if use_random else range(selected_range)
+
+    self.dataset = offset_dataset.select(indices)
+
+    # Default value for labels
+    self.labels = torch.zeros(len(self.dataset))
+
+  # Return the underlying dataset
+  def get_dataset(self):
+    return self.dataset
+  
+  # Return classification labels
+  def get_labels(self):
+    return self.labels
+  
+  # This method is implementation dependent; it should take in individual elements 
+  # from self.dataset and return a single processed value
+  def get_dict(self, data):
+    raise NotImplementedError

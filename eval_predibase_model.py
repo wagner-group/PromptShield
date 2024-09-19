@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from utils.collections.benign_datasets import LMSYS, NaturalInstructions
-from utils.collections.prompt_injection_datasets import SPMLChatbotPromptInjection
+from utils.collections.prompt_injection_datasets import SPMLChatbotPromptInjection, HackAPrompt
 
 parser = argparse.ArgumentParser(description='Predibase Fine-Tuned Model Evaluation')
 
@@ -20,7 +20,7 @@ parser.add_argument('--model-name', choices=available_models, default='prompt-in
 parser.add_argument('--adapter-version', default=13)
 
 # Evaluation specifics
-parser.add_argument('--dataset-name', choices=["lmsys", "natural-instructions", "spml"], default="lmsys")
+parser.add_argument('--dataset-name', choices=["lmsys", "natural-instructions", "spml", "hack-a-prompt"], default="lmsys")
 parser.add_argument('--offset', default=0)
 parser.add_argument('--trial', default=2)
 
@@ -134,11 +134,14 @@ if args.dataset_name == "lmsys":
         dataset_str = f"lmsys/vanilla"
     
 elif args.dataset_name == "natural-instructions":
-    data_collection = NaturalInstructions("train", 1500, random_sample=True)
+    data_collection = NaturalInstructions("train", 100, random_sample=True)
     dataset_str = "natural-instructions"
 elif args.dataset_name == "spml":
     data_collection = SPMLChatbotPromptInjection("train", 1500, random_sample=True)
     dataset_str = "spml"
+elif args.dataset_name == "hack-a-prompt":
+    data_collection = HackAPrompt("train", 1000, random_sample=True)
+    dataset_str = "hack-a-prompt"
 
 # Create a folder in which to save results
 todaystring = date.today().strftime("%Y-%m-%d")

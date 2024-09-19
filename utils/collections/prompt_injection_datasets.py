@@ -29,3 +29,29 @@ class SPMLChatbotPromptInjection(ClassificationDataset):
     user_prompt = self.extract_prompt(data)
 
     return sha256((user_prompt).encode('utf-8')).hexdigest()
+  
+# Interfaces with the LMSYS dataset from Hugging Face
+class HackAPrompt(ClassificationDataset):
+  # Set up HackAPrompt dataset; set subset_amount to -1 if the entire dataset is desired
+  def __init__(self, dataset_split, subset_amount, random_sample=True, offset=0):
+    loaded_dataset = load_dataset("hackaprompt/hackaprompt-dataset")
+
+    #filter for successful prompt injections only
+    loaded_dataset = loaded_dataset.filter(lambda example: example["correct"] == True)
+
+    super().__init__(loaded_dataset, dataset_split, subset_amount, random_sample, offset)
+    
+    # Create classification labels associated with the prompt injection detection task
+    self.labels = torch.ones(len(self.dataset))
+
+  # Extract the prompt from the provided data point
+  def extract_prompt(self, data):
+    user_prompt = data["prompt"] + "\n" + data["user_input"]
+
+    return user_prompt
+
+  # Returns the id associated with the provided data point
+  def get_id(self, data):
+    user_prompt = self.extract_prompt(data)
+
+    return sha256((user_prompt).encode('utf-8')).hexdigest()
