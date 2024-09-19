@@ -96,7 +96,7 @@ json.dump(results, out_file, indent = 4, sort_keys = False)
 out_file.close()
 
 #save the dataset in json lines to prepare for predibase training
-with open(f"{save_dir}/{todaystring}_{int(dataset_size/1000)}K_predibase.jsonl", 'w') as outfile:
+with open(f"{save_dir}/_{todaystring}_{int(dataset_size/1000)}K_predibase.jsonl", 'w') as outfile:
     for entry in jsonl_results:
         json.dump(entry, outfile)
         outfile.write('\n')
