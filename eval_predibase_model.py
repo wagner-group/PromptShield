@@ -113,7 +113,7 @@ def formatted_prompt(prompt):
 
 # Set up the model
 if args.model_name == "prompt-injection-detection":
-    if args.adapter_version == "1":
+    if args.adapter_version == "1" or args.adapter_version == "16" or args.adapter_version == "17":
         base_model = "llama-3-1-8b-instruct"
     else:
         base_model = "llama-3-70b-instruct"
@@ -121,7 +121,7 @@ if args.model_name == "prompt-injection-detection":
 overall_model_name = f"{args.model_name}/{args.adapter_version}"
 model_str = f"model_v{args.adapter_version}"
 lorax_client = pb.deployments.client(base_model)
-print(f"Connected to Predibase client...\n")
+print(f"Connected to Predibase client {overall_model_name}...\n")
 
 # Set up dataset
 offset = int(args.offset)
@@ -134,13 +134,13 @@ if args.dataset_name == "lmsys":
         dataset_str = f"lmsys/vanilla"
     
 elif args.dataset_name == "natural-instructions":
-    data_collection = NaturalInstructions("train", 100, random_sample=True)
+    data_collection = NaturalInstructions("train", 1500, random_sample=True)
     dataset_str = "natural-instructions"
 elif args.dataset_name == "spml":
     data_collection = SPMLChatbotPromptInjection("train", 1500, random_sample=True)
     dataset_str = "spml"
 elif args.dataset_name == "hack-a-prompt":
-    data_collection = HackAPrompt("train", 1000, random_sample=True)
+    data_collection = HackAPrompt("train", 1500, random_sample=True)
     dataset_str = "hack-a-prompt"
 
 # Create a folder in which to save results

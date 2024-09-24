@@ -161,3 +161,17 @@ class IFEval(TrainingDataset):
     #this dataset has no user input field
     return {"instruction":  data['prompt'], "input": "", "source": "IFEval","type": "Benign", "flag": 0}
 
+class Ultrachat(TrainingDataset):
+  # Set up ScienceQA dataset; 
+  def __init__(self, dataset_split= "train_sft", subset_amount=1000, random_sample=True, offset=0):
+    loaded_dataset = load_dataset("HuggingFaceH4/ultrachat_200k")
+    super().__init__(loaded_dataset, dataset_split, subset_amount, random_sample, offset)
+
+    # Create classification labels associated with the prompt injection detection task
+    self.labels = torch.zeros(len(self.dataset))
+
+  # Create a dict object from the provided data point
+  def get_dict(self, data):
+
+    #this dataset has no user input field
+    return {"instruction":  data['prompt'], "input": "", "source": "Ultrachat_200k","type": "Benign", "flag": 0}

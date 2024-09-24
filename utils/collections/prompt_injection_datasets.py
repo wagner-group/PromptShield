@@ -41,13 +41,27 @@ class HackAPrompt(ClassificationDataset):
 
     super().__init__(loaded_dataset, dataset_split, subset_amount, random_sample, offset)
     
+    # Find and filter out duplicates as described in the dataset README
+    first_loc_dups = []
+    hashmap = {}
+    for data_index, data in enumerate(self.dataset):
+      prompt_hash = sha256((data["prompt"]).encode('utf-8')).hexdigest()
+
+      # Check if this prompt has already been encountered
+      if hashmap.get(prompt_hash) != None: continue
+
+      # This task_id has now been seen once, thus we note down the location of first appearance
+      hashmap[prompt_hash] = 1
+      first_loc_dups.append(data_index)
+
+    self.dataset = self.dataset.select(np.array(first_loc_dups))
     # Create classification labels associated with the prompt injection detection task
     self.labels = torch.ones(len(self.dataset))
 
+
   # Extract the prompt from the provided data point
   def extract_prompt(self, data):
-    user_prompt = data["prompt"] + "\n" + data["user_input"]
-
+    user_prompt = data["prompt"]
     return user_prompt
 
   # Returns the id associated with the provided data point
