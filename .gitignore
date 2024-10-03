@@ -1,6 +1,6 @@
 cached_outputs/
 dataset_evals/
-roc_curves/
+eval_plots/
 trained_models/
 *.pyc
 **/.DS_Store

@@ -35,8 +35,8 @@ class HackAPrompt(ClassificationDataset):
   # Set up HackAPrompt dataset; set subset_amount to -1 if the entire dataset is desired
   def __init__(self, dataset_split, subset_amount, random_sample=True, offset=0):
     loaded_dataset = load_dataset("hackaprompt/hackaprompt-dataset")
-
-    #filter for successful prompt injections only
+    
+    # Filter for successful prompt injections only
     loaded_dataset = loaded_dataset.filter(lambda example: example["correct"] == True)
 
     super().__init__(loaded_dataset, dataset_split, subset_amount, random_sample, offset)

@@ -26,7 +26,7 @@ args = parser.parse_args()
 # Evaluation loop helper function
 def evaluate_batch(model, data_loader):
 
-    device = "cuda:3"
+    device = "cuda:2"
     model.to(device)
 
     # Initialize softmax
@@ -94,7 +94,6 @@ model.eval()
 # Perform evaluation
 encoded_dataset = data_collection.convert2torch(tokenizer=tokenizer)
 data_loader = torch.utils.data.DataLoader(encoded_dataset, batch_size=int(args.batch_size))
-
 preds, scores_prompt_injection = evaluate_batch(model, data_loader)
 
 # Visualization

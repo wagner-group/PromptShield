@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser(description='Predibase Fine-Tuned Model Evaluat
 # Model specifics
 available_models = ['prompt-injection-detection']
 parser.add_argument('--model-name', choices=available_models, default='prompt-injection-detection')
-parser.add_argument('--adapter-version', default=13)
+parser.add_argument('--adapter-version', default=17)
 
 # Evaluation specifics
 parser.add_argument('--dataset-name', choices=["lmsys", "natural-instructions", "spml", "hack-a-prompt"], default="lmsys")
@@ -48,10 +48,10 @@ def evaluate_queries(data_collection, lorax_client, model_name, formatted_prompt
         input_prompt = formatted_prompt(user_prompt)
 
         # Query the lorax client and retrieve token scores
-        response = lorax_client.generate(input_prompt, adapter_id=model_name, max_new_tokens=2, details=True, return_k_alternatives=5)
+        response = lorax_client.generate(input_prompt, adapter_id=model_name, max_new_tokens=2, details=True, return_k_alternatives=10)
         alternative_tokens = response.details.tokens[0].alternative_tokens
         log_prob_score = [alt.logprob for alt in alternative_tokens if alt.text == "1"]
-        score = np.exp(log_prob_score)
+        score = np.exp(log_prob_score) if len(log_prob_score) == 1 else 0   # If the token "1" is not listed among the alternatives, assume score is 0
 
         # Incorporate the response for this conversation_id in a dictionary
         results[prompt_id] = {"user_prompt": user_prompt, "response": response.generated_text}
@@ -112,8 +112,9 @@ def formatted_prompt(prompt):
     return formatted_text
 
 # Set up the model
+version_num = int(args.adapter_version)
 if args.model_name == "prompt-injection-detection":
-    if args.adapter_version == "1" or args.adapter_version == "16" or args.adapter_version == "17":
+    if version_num == 1 or version_num >= 15:
         base_model = "llama-3-1-8b-instruct"
     else:
         base_model = "llama-3-70b-instruct"
@@ -157,12 +158,12 @@ preds = parse_results(results)
 # Visualization of results
 preds = np.array(preds)
 labels = data_collection.get_labels().numpy()
-cm = confusion_matrix(labels, preds, labels=[0, 1, 2])
-disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["benign", "injection", "spurious value"])
+cm = confusion_matrix(labels, preds, labels=[0, 1])
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["benign", "injection"])
 disp.plot().figure_.savefig(save_dir + 'confusion_matrix.png', bbox_inches='tight')
 
 # Save scores
 outputs = {"model_name": model_str, "dataset_name": args.dataset_name, "scores_prompt_injection": scores_prompt_injection, "labels": labels}
 outputs_dir = f"cached_outputs/{args.dataset_name}/{todaystring}/trial_{args.trial}_{model_str}/"
 Path(outputs_dir).mkdir(parents=True, exist_ok=True)
-np.savez(outputs_dir + f"{model_str}_{args.dataset_name}_outputs.npz", **outputs)
+np.savez(outputs_dir + f"{model_str}_{args.dataset_name}_outputs_{len(data_collection.get_dataset())}_randsample.npz", **outputs)
