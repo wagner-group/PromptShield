@@ -11,7 +11,10 @@ def random_indices(dataset_len, selected_range):
 # Inspired by: https://pytorch.org/vision/main/_modules/torchvision/datasets/vision.html#VisionDataset
 class ClassificationDataset():
   def __init__(self, dataset, dataset_split, subset_amount, random_sample=True, offset=0):
-    total_dataset_len = len(dataset[dataset_split])
+    if dataset_split != 0:
+      total_dataset_len = len(dataset[dataset_split])
+    else:
+      total_dataset_len = len(dataset)
 
     # Select the entire dataset if subset_amount is -1
     selected_range = subset_amount 
@@ -20,7 +23,10 @@ class ClassificationDataset():
       offset = 0
 
     # Slice the dataset according to the offset
-    offset_dataset = dataset[dataset_split].select(np.arange(total_dataset_len)[offset:])
+    if dataset_split != 0:
+      offset_dataset = dataset[dataset_split].select(np.arange(total_dataset_len)[offset:])
+    else:
+      offset_dataset = dataset
 
     # Check if a random sample is desired
     use_random = (random_sample) and (subset_amount != -1)

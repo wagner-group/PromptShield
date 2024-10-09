@@ -2,6 +2,7 @@ from datasets import load_dataset
 from datasets import Dataset
 from datasets.utils.info_utils import VerificationMode
 import os
+import pandas as pd
 
 from hashlib import sha256
 import torch
@@ -15,7 +16,7 @@ class PurpleLlama(TrainingDataset):
   #load the json file
   def __init__(self):
     dataset = []
-    filepath = os.path.dirname(__file__) + '/../../data/training_data_sources/purplellama_prompt_injection.json'
+    filepath = os.path.dirname(__file__) + '/../../data/data_sources/purplellama_prompt_injection.json'
     with open(filepath, encoding='utf-8') as data_file:
       dataset = json.loads(data_file.read())
     
@@ -90,18 +91,35 @@ class StruQAttacks(TrainingDataset):
     #create the seed dataset, default is Alpaca
     if seed_dataset_name == "Alpaca":
       seed_data_collection = Alpaca("train", sample_size, random_sample=True)
+    elif seed_dataset_name == "SPP":
+      seed_data_collection = SPP("train", sample_size, random_sample=True)
+    
 
     struq_data = create_random_prompt_injected_llm_input(seed_data_collection.dataset)
 
-    self.dataset = struq_data
+    # struq_df = pd.DataFrame.from_records(struq_data)
+
+    self.dataset =  Dataset.from_list(struq_data)
     self.seed_dataset_name = seed_dataset_name
 
     # Create training labels associated with the prompt injection detection task
     self.labels = torch.ones(len(self.dataset))
 
+    # Extract the prompt from the provided data point
+  def extract_prompt(self, data):
+    prompt = data["instruction"] + "\n" + data["input"]
+
+    return prompt
+
   # Create a dict object from the provided data point
   def get_dict(self, data):
     return {"instruction":  data['instruction'], "input": data['input'], "source": f'StruQ - {self.seed_dataset_name}',"type": data['type'], "flag": 1}
+  
+  # Returns the id associated with the provided data point
+  def get_id(self, data):
+    user_prompt = self.extract_prompt(data)
+
+    return sha256((user_prompt).encode('utf-8')).hexdigest()
   
 
 # Interfaces with the SPP_30K_reasoning_tasks dataset from Hugging Face

@@ -36,12 +36,13 @@ parser.add_argument('--size', default=1000)
 #TODO: add more dataset parameters
 args = parser.parse_args()
 dataset_size = int(args.size)
-malicious_portion = 0.3
-benign_portion = 0.7
+malicious_portion = 0.5
+benign_portion = 0.5
 
 # Set up dataset sizes
 purplellama_data_collection = PurpleLlama()
 struq_size = math.ceil(dataset_size*malicious_portion) - len(purplellama_data_collection.dataset)
+struq_size = math.ceil(struq_size/2)
 benign_datasets_size = math.ceil((dataset_size*benign_portion)/6)
 
 #IFEval has only 541 datapoint, check if the benign dataset portion size is larger
@@ -54,7 +55,11 @@ else:
 alpaca_data_collection = Alpaca("train", benign_datasets_size, random_sample=True)
 #lmsys_data_collection = LMSYS("train", benign_datasets_size, random_sample=True)
 ultrachat_data_collection = Ultrachat("train_sft", benign_datasets_size, random_sample=True)
-struqattacks_data_collection = StruQAttacks(sample_size=struq_size)
+
+
+struqattacks_data_collection_alpaca = StruQAttacks(sample_size=struq_size)
+struqattacks_data_collection_spp = StruQAttacks(sample_size=struq_size, seed_dataset_name= "SPP")
+
 spp_data_collection = SPP("train", benign_datasets_size, random_sample=True)
 scienceqa_data_collection = ScienceQA("train", benign_datasets_size, random_sample=True)
 databricksdolly_data_collection = DatabricksDolly("train", benign_datasets_size, random_sample=True)
@@ -62,7 +67,7 @@ ifeval_data_collection = IFEval("train", ifeval_size, random_sample=True )
 
 
 data_collections = [alpaca_data_collection, ultrachat_data_collection, purplellama_data_collection, 
-                    struqattacks_data_collection, spp_data_collection, scienceqa_data_collection,
+                    struqattacks_data_collection_alpaca, struqattacks_data_collection_spp, spp_data_collection, scienceqa_data_collection,
                     databricksdolly_data_collection, ifeval_data_collection]
 
 results = []

@@ -8,6 +8,7 @@ import numpy as np
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from utils.collections.benign_datasets import LMSYS, NaturalInstructions
 from utils.collections.prompt_injection_datasets import SPMLChatbotPromptInjection
+from utils.collections.training_datasets import StruQAttacks
 from utils.metrics import computeROC
 
 import torch
@@ -16,7 +17,7 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 parser = argparse.ArgumentParser(description='PromptGuard Model Evaluation')
 
 # Evaluation specifics
-parser.add_argument('--dataset-name', choices=["lmsys", "natural-instructions", "spml"], default="lmsys")
+parser.add_argument('--dataset-name', choices=["lmsys", "natural-instructions", "spml", "StruQ-SPP"], default="lmsys")
 parser.add_argument('--offset', default=0)
 parser.add_argument('--trial', default=1)
 parser.add_argument('--batch-size', default=4)
@@ -75,6 +76,9 @@ elif args.dataset_name == "natural-instructions":
 elif args.dataset_name == "spml":
     data_collection = SPMLChatbotPromptInjection("train", 1500, random_sample=True)
     dataset_str = "spml"
+elif args.dataset_name == "StruQ-SPP":
+    data_collection = StruQAttacks(1500, seed_dataset_name="SPP")
+    dataset_str = "StruQ-SPP"
 
 dataset = data_collection.get_dataset()
 print(f"There are a total of {len(dataset)} datapoints...\n")

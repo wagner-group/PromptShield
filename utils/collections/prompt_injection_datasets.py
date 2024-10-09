@@ -5,6 +5,8 @@ from datasets.utils.info_utils import VerificationMode
 from hashlib import sha256
 import torch
 import numpy as np
+import os
+import json
 
 from .generics import ClassificationDataset
 
@@ -62,6 +64,43 @@ class HackAPrompt(ClassificationDataset):
   # Extract the prompt from the provided data point
   def extract_prompt(self, data):
     user_prompt = data["prompt"]
+    return user_prompt
+
+  # Returns the id associated with the provided data point
+  def get_id(self, data):
+    user_prompt = self.extract_prompt(data)
+
+    return sha256((user_prompt).encode('utf-8')).hexdigest()
+  
+
+# Loads the dataset generated in JSON format from the usenix paper 
+#https: //github.com/liu00222/Open-Prompt-Injection.
+class OpenPromptInjection(ClassificationDataset):
+  # Set up SPML Chatbot Prompt Injection dataset; set subset_amount to -1 if the entire dataset is desired
+  def __init__(self, subset_amount, random_sample=True, offset=0):
+    combined_data = []
+
+    filepath = os.path.dirname(__file__) + '/../../data/data_sources/usenix_attacks.json'
+    with open(filepath, encoding='utf-8') as data_file:
+      combined_data = list(json.loads(data_file.read()))
+
+    filepath = os.path.dirname(__file__) + '/../../data/data_sources/usenix_benign.json'
+    with open(filepath, encoding='utf-8') as data_file:
+      combined_data.extend(json.loads(data_file.read()))
+
+
+    loaded_dataset = Dataset.from_list(combined_data)
+    print(f"combined_data data: {len(loaded_dataset)}")
+
+    super().__init__(loaded_dataset, 0, subset_amount, random_sample, offset)
+
+    # Create classification labels associated with the prompt injection detection task
+    self.labels = torch.Tensor(self.dataset["flag"])
+
+  # Extract the prompt from the provided data point
+  def extract_prompt(self, data):
+    user_prompt = data["instruction"] + "\n" + data["input"]
+
     return user_prompt
 
   # Returns the id associated with the provided data point

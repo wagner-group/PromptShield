@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from utils.collections.benign_datasets import LMSYS, NaturalInstructions
-from utils.collections.prompt_injection_datasets import SPMLChatbotPromptInjection, HackAPrompt
+from utils.collections.prompt_injection_datasets import SPMLChatbotPromptInjection, HackAPrompt, OpenPromptInjection
+from utils.collections.training_datasets import StruQAttacks
 
 parser = argparse.ArgumentParser(description='Predibase Fine-Tuned Model Evaluation')
 
@@ -20,7 +21,7 @@ parser.add_argument('--model-name', choices=available_models, default='prompt-in
 parser.add_argument('--adapter-version', default=17)
 
 # Evaluation specifics
-parser.add_argument('--dataset-name', choices=["lmsys", "natural-instructions", "spml", "hack-a-prompt"], default="lmsys")
+parser.add_argument('--dataset-name', choices=["lmsys", "natural-instructions", "spml", "hack-a-prompt", "StruQ-SPP", "usenix"], default="lmsys")
 parser.add_argument('--offset', default=0)
 parser.add_argument('--trial', default=2)
 
@@ -143,6 +144,12 @@ elif args.dataset_name == "spml":
 elif args.dataset_name == "hack-a-prompt":
     data_collection = HackAPrompt("train", 1500, random_sample=True)
     dataset_str = "hack-a-prompt"
+elif args.dataset_name == "StruQ-SPP":
+    data_collection = StruQAttacks(1500, seed_dataset_name="SPP")
+    dataset_str = "StruQ-SPP"
+elif args.dataset_name == "usenix":
+    data_collection = OpenPromptInjection(2000, random_sample=True)
+    dataset_str = "usenix"
 
 # Create a folder in which to save results
 todaystring = date.today().strftime("%Y-%m-%d")
