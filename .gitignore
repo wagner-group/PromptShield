@@ -5,3 +5,5 @@ trained_models/
 *.pyc
 **/.DS_Store
 .venv/
+env/
+outputs*

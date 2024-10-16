@@ -108,3 +108,29 @@ class TrainingDataset():
   # from self.dataset and return a single processed value
   def get_dict(self, data):
     raise NotImplementedError
+  
+    # This method is implementation dependent; it should take in individual elements 
+  # from self.dataset and return a single processed value
+  def extract_prompt(self, data):
+    raise NotImplementedError
+
+  # Given a tokenizer, convert underlying dataset into a usable representation for torch.utils.data.DataLoader
+  # NOTE: self.extract_prompt is applied to each datapoint to ensure resulting elements are of equal size
+  def convert2torch(self, tokenizer, text_transform = None):
+    # Combine self.extract_prompt with text_transform
+    def combined_transform(data):
+      extracted_prompt = self.extract_prompt(data)
+      if text_transform is not None:
+        extracted_prompt = text_transform(extracted_prompt)
+
+      return {"extracted_prompt": extracted_prompt}
+
+    # Apply combined_transform to each element of self.dataset, then use the tokenizer    
+    extracted_dataset = self.dataset.map(combined_transform)
+    encoded_texts = tokenizer(extracted_dataset["extracted_prompt"], return_tensors="pt", padding=True, truncation=True)
+
+    # Return PyTorch dataset
+    labels = self.get_labels()
+    encoded_dataset = torch.utils.data.TensorDataset(encoded_texts['input_ids'], encoded_texts['attention_mask'], labels)
+
+    return encoded_dataset
