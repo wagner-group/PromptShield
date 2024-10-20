@@ -1,5 +1,5 @@
 from datasets import Dataset
-
+import json
 import torch
 import numpy as np
 from hashlib import sha256
@@ -16,7 +16,7 @@ def loadDatasetJSON(filepath):
     datasetJSON = list(json.loads(data_file.read()))
   
   # Convert to HuggingFace dataset
-  loaded_dataset = Dataset.from_list(dataset)
+  loaded_dataset = Dataset.from_list(datasetJSON)
 
   return loaded_dataset
 

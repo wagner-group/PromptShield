@@ -8,7 +8,6 @@ import torch
 import numpy as np
 import json
 from .generics import GenericDataset, loadDatasetJSON
-from .inject_alpaca import create_random_prompt_injected_llm_input
 
 #########################################################################
 #                          Benchmark datasets                          #
@@ -21,7 +20,7 @@ class BenchmarkDataset(GenericDataset):
     loaded_dataset = loadDatasetJSON(filepath)
 
     # Create training labels associated with the prompt injection detection task
-    labels = torch.ones(len(loaded_dataset))
+    labels = torch.Tensor(loaded_dataset["flag"])
 
     super().__init__(loaded_dataset, labels, "benchmark_dataset")
 

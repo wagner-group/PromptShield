@@ -6,7 +6,9 @@ import math
 import argparse
 from datetime import date
 from pathlib import Path
-from utils.collections.training_datasets import Alpaca, LMSYS, PurpleLlama, StruQAttacks, SPP, ScienceQA, DatabricksDolly, IFEval, Ultrachat
+from utils.data_collections.training_datasets import Alpaca, PurpleLlama, StruQAttacks, IFEval, Ultrachat, HackAPrompt
+from collections import namedtuple
+
 
 system_prompt = """You are tasked with identifying prompt injections.
 A Prompt Injection is the process of overriding original instructions 
@@ -31,7 +33,7 @@ def created_jsonline(prompt, completion, split):
 parser = argparse.ArgumentParser(description='Create a training dataset for fine-tuning pronpt injection detection')
 
 # dataset size
-parser.add_argument('--size', default=1000)
+parser.add_argument('--size', default=20000)
 
 #TODO: add more dataset parameters
 args = parser.parse_args()
@@ -39,12 +41,33 @@ dataset_size = int(args.size)
 malicious_portion = 0.5
 benign_portion = 0.5
 
-# Set up dataset sizes
-purplellama_data_collection = PurpleLlama()
-struq_size = math.ceil(dataset_size*malicious_portion) - len(purplellama_data_collection.dataset)
-struq_size = math.ceil(struq_size/2)
-benign_datasets_size = math.ceil((dataset_size*benign_portion)/6)
+benign_datasets_size = math.ceil((dataset_size*benign_portion)/4)
+injection_datasets_size = math.ceil((dataset_size*malicious_portion)/2)
 
+print(f'benign_datasets_size: {benign_datasets_size}')
+print(f'injection_datasets_size: {injection_datasets_size}')
+
+
+#########################################################################
+#                         Setup chatbot data...                         #
+#########################################################################
+
+#Ultrachat
+ultrachat_data_collection = Ultrachat("train_sft")
+ultrachat_subset_data, ultrachat_subset_labels = ultrachat_data_collection.create_subset_dataset(subset_amount=benign_datasets_size)
+print("Created Ultrachat...")
+
+
+#########################################################################
+#                 Setup closed-domain benign data...                    #
+#########################################################################
+
+#Alpaca  closed
+alpaca_closed_data_collection = Alpaca("train", data_type="closed_domain")
+alpaca_closed_subset_data, alpaca_closed_subset_labels = alpaca_closed_data_collection.create_subset_dataset(subset_amount=benign_datasets_size)
+print("Created benign alpaca closed prompts...")
+
+#IFEval
 #IFEval has only 541 datapoint, check if the benign dataset portion size is larger
 if benign_datasets_size > 541:
     benign_datasets_size = math.ceil(((dataset_size*benign_portion)-541)/5)
@@ -52,34 +75,70 @@ if benign_datasets_size > 541:
 else:
     ifeval_size = benign_datasets_size
 
-alpaca_data_collection = Alpaca("train", benign_datasets_size, random_sample=True)
-#lmsys_data_collection = LMSYS("train", benign_datasets_size, random_sample=True)
-ultrachat_data_collection = Ultrachat("train_sft", benign_datasets_size, random_sample=True)
+ifeval_data_collection = IFEval("train")
+ifeval_subset_data, ifeval_subset_labels = ifeval_data_collection.create_subset_dataset(subset_amount=ifeval_size)
+print("Created IFeval...")
 
 
-struqattacks_data_collection_alpaca = StruQAttacks(sample_size=struq_size)
-struqattacks_data_collection_spp = StruQAttacks(sample_size=struq_size, seed_dataset_name= "SPP")
+#########################################################################
+#                Setup closed-domain injection data...                  #
+#########################################################################
 
-spp_data_collection = SPP("train", benign_datasets_size, random_sample=True)
-scienceqa_data_collection = ScienceQA("train", benign_datasets_size, random_sample=True)
-databricksdolly_data_collection = DatabricksDolly("train", benign_datasets_size, random_sample=True)
-ifeval_data_collection = IFEval("train", ifeval_size, random_sample=True )
+#purplellama
+purplellama_data_collection = PurpleLlama()
+purplellama_data, purplellama_data_labels = purplellama_data_collection.get_dataset()
+print("Created Purplellama...")
 
 
-data_collections = [alpaca_data_collection, ultrachat_data_collection, purplellama_data_collection, 
-                    struqattacks_data_collection_alpaca, struqattacks_data_collection_spp, spp_data_collection, scienceqa_data_collection,
-                    databricksdolly_data_collection, ifeval_data_collection]
+hackaprompt_data_collection = HackAPrompt("train")
+hackaprompt_subset_data, hackaprompt_subset_labels = hackaprompt_data_collection.create_subset_dataset(subset_amount=injection_datasets_size)
+print("Created HackAprompt...")
+
+# StruQ - Alpaca
+_ = alpaca_closed_data_collection.create_subset_dataset(subset_amount=injection_datasets_size, random_seed=12345)
+struq_alpaca = StruQAttacks(seed_dataset_collection=alpaca_closed_data_collection, dataset_partition="subset", dataset_status="test")
+struq_alpaca_data, struq_alpaca_labels = struq_alpaca.get_dataset()
+print("Created StruQ - Alpaca...")
+
+#########################################################################
+#                    Setup open-domain benign data...                   #
+#########################################################################
+#Alpaca 
+alpaca_open_data_collection = Alpaca("train", data_type="open_domain")
+alpaca_open_subset_data, alpaca_open_subset_labels = alpaca_closed_data_collection.create_subset_dataset(subset_amount=benign_datasets_size)
+print("Created benign alpaca open prompts...")
+
+
+#########################################################################
+#                   Combine all datasets together...                    #
+#########################################################################
+
+
+DataSummarizer = namedtuple("DataSummarizer", ["data_collection", "data", "labels"])
+
+summarizers = [DataSummarizer(ultrachat_data_collection, ultrachat_subset_data, ultrachat_subset_labels), 
+                DataSummarizer(alpaca_closed_data_collection, alpaca_closed_subset_data, alpaca_closed_subset_labels), 
+                DataSummarizer(ifeval_data_collection, ifeval_subset_data, ifeval_subset_labels),
+                DataSummarizer(purplellama_data_collection, purplellama_data, purplellama_data_labels), 
+                DataSummarizer(hackaprompt_data_collection, hackaprompt_subset_data, hackaprompt_subset_labels), 
+                DataSummarizer(struq_alpaca, struq_alpaca_data, struq_alpaca_labels),
+                DataSummarizer(alpaca_open_data_collection, alpaca_open_subset_data, alpaca_open_subset_labels),
+            ]
 
 results = []
-jsonl_results = []
 
-for data_collection in data_collections:
-    for data_point in data_collection.dataset:
+for summarizer in summarizers:
+    data_collection = summarizer.data_collection
+    data = summarizer.data
+    labels = summarizer.labels
+    for data_point in data:
         results.append(data_collection.get_dict(data_point))
 
-#randomly shuffle the dataset 
+# Randomly shuffle the dataset 
+random.seed(12345)
 random.shuffle(results)
 
+jsonl_results = []
 for i, data_point in enumerate(results):
     #create train/evaluation splits for predibase
     split = "train"
@@ -90,6 +149,7 @@ for i, data_point in enumerate(results):
     prompt = data_point["instruction"]+ "\n"+ data_point["input"]
     jsonl_results.append(created_jsonline(prompt, data_point["flag"], split))
 
+print(f'result dataset size: {len(results)}')
 
 # Create a folder in which to save results
 todaystring = date.today().strftime("%Y-%m-%d")

@@ -159,5 +159,5 @@ class OpenPromptInjection(GenericDataset):
 
   # Create a dict object from the provided data point
   def get_dict(self, data):
-    data_type = "Benign - OpenPromptInjection" if data["flag"] == 0 else f"Injection - OpenPromptInjection_{data["type"]}"
+    data_type = "Benign - OpenPromptInjection" if data["flag"] == 0 else f"Injection - OpenPromptInjection_{data['type']}"
     return {"instruction":  data["instruction"], "input": data["input"], "output": "", "source": self.name, "type": data_type, "flag": data["flag"]}

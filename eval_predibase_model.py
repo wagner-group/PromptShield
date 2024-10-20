@@ -9,9 +9,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-from utils.collections.benign_datasets import LMSYS, NaturalInstructions
-from utils.collections.prompt_injection_datasets import SPMLChatbotPromptInjection, HackAPrompt, OpenPromptInjection
-from utils.collections.training_datasets import StruQAttacks
+
+from utils.data_collections.benchmark_datasets import BenchmarkDataset
 
 parser = argparse.ArgumentParser(description='Predibase Fine-Tuned Model Evaluation')
 
@@ -19,9 +18,9 @@ parser = argparse.ArgumentParser(description='Predibase Fine-Tuned Model Evaluat
 available_models = ['prompt-injection-detection']
 parser.add_argument('--model-name', choices=available_models, default='prompt-injection-detection')
 parser.add_argument('--adapter-version', default=17)
+parser.add_argument('--file-date', default="")
 
 # Evaluation specifics
-parser.add_argument('--dataset-name', choices=["lmsys", "natural-instructions", "spml", "hack-a-prompt", "StruQ-SPP", "usenix"], default="lmsys")
 parser.add_argument('--offset', default=0)
 parser.add_argument('--trial', default=2)
 
@@ -31,9 +30,10 @@ args = parser.parse_args()
 def evaluate_queries(data_collection, lorax_client, model_name, formatted_prompt, save_dir):
     results = {}
     scores_prompt_injection = []
+    labels = []
 
     print("\nStarting the evaluation process...")
-    dataset = data_collection.get_dataset()
+    dataset, _ = data_collection.get_dataset()
     print(f"There are a total of {len(dataset)} datapoints...\n")
     tqdm._instances.clear()
     progress_bar = tqdm(range(len(dataset)), position=0, leave=True, ascii=True)
@@ -47,6 +47,12 @@ def evaluate_queries(data_collection, lorax_client, model_name, formatted_prompt
         user_prompt = data_collection.extract_prompt(data)
         prompt_id = data_collection.get_id(data)
         input_prompt = formatted_prompt(user_prompt)
+        label = data_collection.get_label(data)
+
+
+        #check if the prompt_id exists in the results dict, continue if it exists
+        if prompt_id in results:
+            continue 
 
         # Query the lorax client and retrieve token scores
         response = lorax_client.generate(input_prompt, adapter_id=model_name, max_new_tokens=2, details=True, return_k_alternatives=10)
@@ -54,16 +60,17 @@ def evaluate_queries(data_collection, lorax_client, model_name, formatted_prompt
         log_prob_score = [alt.logprob for alt in alternative_tokens if alt.text == "1"]
         score = np.exp(log_prob_score) if len(log_prob_score) == 1 else 0   # If the token "1" is not listed among the alternatives, assume score is 0
 
-        # Incorporate the response for this conversation_id in a dictionary
+        # Incorporate the response for this conversation_id in a dictionary, add label to list of labels
         results[prompt_id] = {"user_prompt": user_prompt, "response": response.generated_text}
         scores_prompt_injection.extend(np.array(score).reshape(1,))
+        labels.append(label)
         progress_bar.update(1)
 
     # Save the final copy of the results dict
     with open(save_dir + "results.json", "w") as outfile: 
         json.dump(results, outfile, indent=2)
 
-    return results, scores_prompt_injection
+    return results, scores_prompt_injection, labels
 
 # Helper function to parse results from the Predibase model
 def parse_results(results):
@@ -125,52 +132,42 @@ model_str = f"model_v{args.adapter_version}"
 lorax_client = pb.deployments.client(base_model)
 print(f"Connected to Predibase client {overall_model_name}...\n")
 
-# Set up dataset
 offset = int(args.offset)
-if args.dataset_name == "lmsys":
-    toxicity_threshold = 0.01
-    data_collection = LMSYS("train", 1500, random_sample=True, toxicity_threshold=toxicity_threshold, offset=offset)
-    if toxicity_threshold < 1.0:
-        dataset_str = f"lmsys/content_moderated/thre_{toxicity_threshold * 100:g}_percent"
-    else:
-        dataset_str = f"lmsys/vanilla"
-    
-elif args.dataset_name == "natural-instructions":
-    data_collection = NaturalInstructions("train", 1500, random_sample=True)
-    dataset_str = "natural-instructions"
-elif args.dataset_name == "spml":
-    data_collection = SPMLChatbotPromptInjection("train", 1500, random_sample=True)
-    dataset_str = "spml"
-elif args.dataset_name == "hack-a-prompt":
-    data_collection = HackAPrompt("train", 1500, random_sample=True)
-    dataset_str = "hack-a-prompt"
-elif args.dataset_name == "StruQ-SPP":
-    data_collection = StruQAttacks(1500, seed_dataset_name="SPP")
-    dataset_str = "StruQ-SPP"
-elif args.dataset_name == "usenix":
-    data_collection = OpenPromptInjection(2000, random_sample=True)
-    dataset_str = "usenix"
+dataset_str = "evaluation_benchmark"
 
 # Create a folder in which to save results
 todaystring = date.today().strftime("%Y-%m-%d")
 save_dir = f"dataset_evals/{dataset_str}/{todaystring}/trial_{args.trial}_{model_str}_offset_{offset}/"
 Path(save_dir).mkdir(parents=True, exist_ok=True)
 
-# Query the fine-tuned model with each of the datapoints
-results, scores_prompt_injection = evaluate_queries(data_collection, lorax_client, overall_model_name, formatted_prompt, save_dir)
+# Set up dataset
+if args.file_date == "":
+    benchmark_file = f"data/evaluation_data/{todaystring}/{todaystring}_evaluation_benchmark.json"
+else:
+    benchmark_file = f"data/evaluation_data/{args.file_date}/{args.file_date}_evaluation_benchmark.json"
+
+try:
+    data_collection = BenchmarkDataset(benchmark_file)
+except:
+    print("Benchmark file not found, enter correct date (--file-date=2024-10-20)")
+    raise
+
+#Query the fine-tuned model with each of the datapoints
+results, scores_prompt_injection, labels = evaluate_queries(data_collection, lorax_client, overall_model_name, formatted_prompt, save_dir)
 
 # Parse through fine-tuned model results
 preds = parse_results(results)
 
 # Visualization of results
 preds = np.array(preds)
-labels = data_collection.get_labels().numpy()
+
+#labels = data_collection.get_labels().numpy()
 cm = confusion_matrix(labels, preds, labels=[0, 1])
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["benign", "injection"])
 disp.plot().figure_.savefig(save_dir + 'confusion_matrix.png', bbox_inches='tight')
 
 # Save scores
-outputs = {"model_name": model_str, "dataset_name": args.dataset_name, "scores_prompt_injection": scores_prompt_injection, "labels": labels}
-outputs_dir = f"cached_outputs/{args.dataset_name}/{todaystring}/trial_{args.trial}_{model_str}/"
+outputs = {"model_name": model_str, "dataset_name": dataset_str, "scores_prompt_injection": scores_prompt_injection, "labels": labels}
+outputs_dir = f"cached_outputs/{dataset_str}/{todaystring}/trial_{args.trial}_{model_str}/"
 Path(outputs_dir).mkdir(parents=True, exist_ok=True)
-np.savez(outputs_dir + f"{model_str}_{args.dataset_name}_outputs_{len(data_collection.get_dataset())}_randsample.npz", **outputs)
+np.savez(outputs_dir + f"{model_str}_{dataset_str}_outputs_{len(data_collection.get_dataset())}_randsample.npz", **outputs)
