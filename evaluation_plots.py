@@ -67,7 +67,7 @@ Path(save_dir).mkdir(parents=True, exist_ok=True)
 # Convert to numpy
 dataset_names = np.array(dataset_name_list)
 scores_prompt_injection = np.array(scores_prompt_injection)
-labels = np.array(labels)
+labels = np.array(labels).astype("int")
 
 #########################################################################
 #                           Plotting stage...                           #
