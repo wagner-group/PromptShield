@@ -44,9 +44,6 @@ benign_portion = 0.5
 benign_datasets_size = math.ceil((dataset_size*benign_portion)/4)
 injection_datasets_size = math.ceil((dataset_size*malicious_portion)/2)
 
-print(f'benign_datasets_size: {benign_datasets_size}')
-print(f'injection_datasets_size: {injection_datasets_size}')
-
 
 #########################################################################
 #                         Setup chatbot data...                         #
@@ -55,7 +52,9 @@ print(f'injection_datasets_size: {injection_datasets_size}')
 #Ultrachat
 ultrachat_data_collection = Ultrachat("train_sft")
 ultrachat_subset_data, ultrachat_subset_labels = ultrachat_data_collection.create_subset_dataset(subset_amount=benign_datasets_size)
-print("Created Ultrachat...")
+ultrachat_size = len(ultrachat_subset_data)
+
+print(f'Created Ultrachat: {ultrachat_size} datapoints')
 
 
 #########################################################################
@@ -65,7 +64,9 @@ print("Created Ultrachat...")
 #Alpaca  closed
 alpaca_closed_data_collection = Alpaca("train", data_type="closed_domain")
 alpaca_closed_subset_data, alpaca_closed_subset_labels = alpaca_closed_data_collection.create_subset_dataset(subset_amount=benign_datasets_size)
-print("Created benign alpaca closed prompts...")
+alpaca_closed_size = len(alpaca_closed_subset_data)
+
+print(f'Created benign alpaca closed prompts: {alpaca_closed_size} datapoints')
 
 #IFEval
 #IFEval has only 541 datapoint, check if the benign dataset portion size is larger
@@ -77,7 +78,7 @@ else:
 
 ifeval_data_collection = IFEval("train")
 ifeval_subset_data, ifeval_subset_labels = ifeval_data_collection.create_subset_dataset(subset_amount=ifeval_size)
-print("Created IFeval...")
+print(f'Created IFeval: {ifeval_size} datapoints')
 
 
 #########################################################################
@@ -87,18 +88,23 @@ print("Created IFeval...")
 #purplellama
 purplellama_data_collection = PurpleLlama()
 purplellama_data, purplellama_data_labels = purplellama_data_collection.get_dataset()
-print("Created Purplellama...")
+purplellama_size = len(purplellama_data)
+print(f'Created Purplellama: {purplellama_size} datapoints')
 
 
 hackaprompt_data_collection = HackAPrompt("train")
 hackaprompt_subset_data, hackaprompt_subset_labels = hackaprompt_data_collection.create_subset_dataset(subset_amount=injection_datasets_size)
-print("Created HackAprompt...")
+hackaprompt_size = len(hackaprompt_subset_data)
+
+print(f'Created HackAprompt: {hackaprompt_size} datapoints')
 
 # StruQ - Alpaca
 _ = alpaca_closed_data_collection.create_subset_dataset(subset_amount=injection_datasets_size, random_seed=12345)
 struq_alpaca = StruQAttacks(seed_dataset_collection=alpaca_closed_data_collection, dataset_partition="subset", dataset_status="test")
 struq_alpaca_data, struq_alpaca_labels = struq_alpaca.get_dataset()
-print("Created StruQ - Alpaca...")
+struq_size = len(struq_alpaca_data)
+
+print(f'Created StruQ - Alpaca: {struq_size} datapoints')
 
 #########################################################################
 #                    Setup open-domain benign data...                   #
@@ -106,7 +112,8 @@ print("Created StruQ - Alpaca...")
 #Alpaca 
 alpaca_open_data_collection = Alpaca("train", data_type="open_domain")
 alpaca_open_subset_data, alpaca_open_subset_labels = alpaca_closed_data_collection.create_subset_dataset(subset_amount=benign_datasets_size)
-print("Created benign alpaca open prompts...")
+alpaca_open_size = len(alpaca_open_subset_data)
+print(f'Created benign alpaca open prompts: {alpaca_open_size} datapoints')
 
 
 #########################################################################

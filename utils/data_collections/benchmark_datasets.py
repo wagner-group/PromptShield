@@ -32,3 +32,6 @@ class BenchmarkDataset(GenericDataset):
   # Create a dict object from the provided data point
   def get_dict(self, data):
     return data
+
+  def get_label(self, data):
+    return data['flag']

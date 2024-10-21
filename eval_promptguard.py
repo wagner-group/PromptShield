@@ -6,10 +6,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-from utils.collections.benign_datasets import LMSYS, NaturalInstructions
-from utils.collections.prompt_injection_datasets import SPMLChatbotPromptInjection, OpenPromptInjection
-from utils.collections.training_datasets import StruQAttacks
 from utils.metrics import computeROC
+from utils.data_collections.benchmark_datasets import BenchmarkDataset
 
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
@@ -17,10 +15,10 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 parser = argparse.ArgumentParser(description='PromptGuard Model Evaluation')
 
 # Evaluation specifics
-parser.add_argument('--dataset-name', choices=["lmsys", "natural-instructions", "spml", "StruQ-SPP", "usenix"], default="lmsys")
 parser.add_argument('--offset', default=0)
 parser.add_argument('--trial', default=1)
-parser.add_argument('--batch-size', default=4)
+parser.add_argument('--batch-size', default=1)
+parser.add_argument('--file-date', default="")
 
 args = parser.parse_args()
 
@@ -60,37 +58,29 @@ def evaluate_batch(model, data_loader):
 
     return preds, scores_prompt_injection
 
-# Set up dataset
-offset = int(args.offset)
-if args.dataset_name == "lmsys":
-    toxicity_threshold = 0.01
-    data_collection = LMSYS("train", 1500, random_sample=True, toxicity_threshold=toxicity_threshold, offset=offset)
-    if toxicity_threshold < 1.0:
-        dataset_str = f"lmsys/content_moderated/thre_{toxicity_threshold * 100:g}_percent"
-    else:
-        dataset_str = f"lmsys/vanilla"
-    
-elif args.dataset_name == "natural-instructions":
-    data_collection = NaturalInstructions("train", 1500, random_sample=True)
-    dataset_str = "natural-instructions"
-elif args.dataset_name == "spml":
-    data_collection = SPMLChatbotPromptInjection("train", 1500, random_sample=True)
-    dataset_str = "spml"
-elif args.dataset_name == "StruQ-SPP":
-    data_collection = StruQAttacks(1500, seed_dataset_name="SPP")
-    dataset_str = "StruQ-SPP"
-elif args.dataset_name == "usenix":
-    data_collection = OpenPromptInjection(2000, random_sample=True)
-    dataset_str = "usenix"
 
-dataset = data_collection.get_dataset()
-print(f"There are a total of {len(dataset)} datapoints...\n")
+offset = int(args.offset)
+dataset_str = "evaluation_benchmark"
 
 # Create a folder in which to save results
 model_str = "promptguard"
 todaystring = date.today().strftime("%Y-%m-%d")
 save_dir = f"dataset_evals/{dataset_str}/{todaystring}/trial_{args.trial}_{model_str}_offset_{offset}/"
 Path(save_dir).mkdir(parents=True, exist_ok=True)
+
+# Set up dataset
+if args.file_date == "":
+    benchmark_file = f"data/evaluation_data/{todaystring}/{todaystring}_evaluation_benchmark.json"
+else:
+    benchmark_file = f"data/evaluation_data/{args.file_date}/{args.file_date}_evaluation_benchmark.json"
+
+try:
+    data_collection = BenchmarkDataset(benchmark_file)
+except:
+    print("Benchmark file not found, enter correct date (--file-date=2024-10-20)")
+    raise
+dataset, data_labels = data_collection.get_dataset()
+print(f"There are a total of {len(dataset)} datapoints...\n")
 
 # Load the model
 model_id = "meta-llama/Prompt-Guard-86M"
@@ -99,7 +89,7 @@ model = AutoModelForSequenceClassification.from_pretrained(model_id)
 model.eval()
 
 # Perform evaluation
-encoded_dataset = data_collection.convert2torch(tokenizer=tokenizer)
+encoded_dataset = data_collection.convert2torch(tokenizer=tokenizer, dataset=dataset, labels=data_labels )
 data_loader = torch.utils.data.DataLoader(encoded_dataset, batch_size=int(args.batch_size))
 preds, scores_prompt_injection = evaluate_batch(model, data_loader)
 
