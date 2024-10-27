@@ -35,3 +35,6 @@ class BenchmarkDataset(GenericDataset):
 
   def get_label(self, data):
     return data['flag']
+  
+  def get_labels(self):
+    return self.labels

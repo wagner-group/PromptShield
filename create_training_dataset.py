@@ -41,7 +41,7 @@ dataset_size = int(args.size)
 malicious_portion = 0.5
 benign_portion = 0.5
 
-benign_datasets_size = math.ceil((dataset_size*benign_portion)/4)
+benign_datasets_size = math.ceil((dataset_size*benign_portion)/3)
 injection_datasets_size = math.ceil((dataset_size*malicious_portion)/2)
 
 
@@ -50,11 +50,11 @@ injection_datasets_size = math.ceil((dataset_size*malicious_portion)/2)
 #########################################################################
 
 #Ultrachat
-ultrachat_data_collection = Ultrachat("train_sft")
-ultrachat_subset_data, ultrachat_subset_labels = ultrachat_data_collection.create_subset_dataset(subset_amount=benign_datasets_size)
-ultrachat_size = len(ultrachat_subset_data)
+# ultrachat_data_collection = Ultrachat("train_sft")
+# ultrachat_subset_data, ultrachat_subset_labels = ultrachat_data_collection.create_subset_dataset(subset_amount=benign_datasets_size)
+# ultrachat_size = len(ultrachat_subset_data)
 
-print(f'Created Ultrachat: {ultrachat_size} datapoints')
+# print(f'Created Ultrachat: {ultrachat_size} datapoints')
 
 
 #########################################################################
@@ -123,7 +123,7 @@ print(f'Created benign alpaca open prompts: {alpaca_open_size} datapoints')
 
 DataSummarizer = namedtuple("DataSummarizer", ["data_collection", "data", "labels"])
 
-summarizers = [DataSummarizer(ultrachat_data_collection, ultrachat_subset_data, ultrachat_subset_labels), 
+summarizers = [#DataSummarizer(ultrachat_data_collection, ultrachat_subset_data, ultrachat_subset_labels), 
                 DataSummarizer(alpaca_closed_data_collection, alpaca_closed_subset_data, alpaca_closed_subset_labels), 
                 DataSummarizer(ifeval_data_collection, ifeval_subset_data, ifeval_subset_labels),
                 DataSummarizer(purplellama_data_collection, purplellama_data, purplellama_data_labels), 
@@ -164,12 +164,12 @@ save_dir = f"data/training_data/{todaystring}/"
 Path(save_dir).mkdir(parents=True, exist_ok=True)
 
 #save dataset in json file
-out_file = open(f"{save_dir}/{todaystring}_{int(dataset_size/1000)}K_full.json", "w")
+out_file = open(f"{save_dir}/{todaystring}_v18u_full.json", "w")
 json.dump(results, out_file, indent = 4, sort_keys = False)
 out_file.close()
 
 #save the dataset in json lines to prepare for predibase training
-with open(f"{save_dir}/_{todaystring}_{int(dataset_size/1000)}K_predibase.jsonl", 'w') as outfile:
+with open(f"{save_dir}/_{todaystring}_v18u_predibase.jsonl", 'w') as outfile:
     for entry in jsonl_results:
         json.dump(entry, outfile)
         outfile.write('\n')

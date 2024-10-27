@@ -101,10 +101,10 @@ disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["benign", "in
 disp.plot().figure_.savefig(save_dir + 'confusion_matrix.png', bbox_inches='tight')
 
 # Save scores
-outputs = {"model_name": model_str, "dataset_name": args.dataset_name, "scores_prompt_injection": scores_prompt_injection, "labels": labels}
-outputs_dir = f"cached_outputs/{args.dataset_name}/{todaystring}/trial_{args.trial}_{model_str}/"
+outputs = {"model_name": model_str, "dataset_name": dataset_str, "scores_prompt_injection": scores_prompt_injection, "labels": labels}
+outputs_dir = f"cached_outputs/{dataset_str}/{todaystring}/trial_{args.trial}_{model_str}/"
 Path(outputs_dir).mkdir(parents=True, exist_ok=True)
-np.savez(outputs_dir + f"{model_str}_{args.dataset_name}_outputs.npz", **outputs)
+np.savez(outputs_dir + f"{model_str}_{dataset_str}_outputs.npz", **outputs)
 
 # save into npz the scores + fpr associated with this
 # make a script which reads from dict and can combine multiple dict and then create ROC
