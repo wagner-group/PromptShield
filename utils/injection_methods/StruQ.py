@@ -89,7 +89,7 @@ def format_with_other_delimiters(text, dataset_status="test"):
     text = text.replace(delimiter_response, mark.format(s=sample_delm('resp')))
     return text
 
-def naive(d_item, attack_text):
+def naive(d_item, attack_text, dataset_status):
     d_item['input'] += ' ' + attack_text.capitalize()
     return d_item
 
@@ -143,7 +143,7 @@ def create_random_prompt_injected_llm_input(dataset_class, dataset, source, data
     random.seed(seed)
 
     # Specify different possible methods (types of attack) 
-    methods = [ignore, completion_real, completion_realcmb, completion_othercmb]
+    methods = [naive, ignore, completion_real]
 
     malicious = []
 

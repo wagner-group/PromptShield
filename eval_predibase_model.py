@@ -26,6 +26,8 @@ parser.add_argument('--trial', default=2)
 
 args = parser.parse_args()
 
+version_num = int(args.adapter_version)
+
 # Evaluation loop helper function
 def evaluate_queries(data_collection, lorax_client, model_name, formatted_prompt, save_dir):
     results = {}
@@ -55,7 +57,11 @@ def evaluate_queries(data_collection, lorax_client, model_name, formatted_prompt
             continue 
 
         # Query the lorax client and retrieve token scores
-        response = lorax_client.generate(input_prompt, adapter_id=model_name, max_new_tokens=2, details=True, return_k_alternatives=10)
+        #The predibase api fails when querying the details for Private Serverless Deployments
+        if version_num == 30 or version_num == 32:
+            response = lorax_client.generate(input_prompt, adapter_id=model_name, max_new_tokens=2, return_k_alternatives=10)
+        else:
+            response = lorax_client.generate(input_prompt, adapter_id=model_name, max_new_tokens=2, details=True, return_k_alternatives=10)
         alternative_tokens = response.details.tokens[0].alternative_tokens
         log_prob_score = [alt.logprob for alt in alternative_tokens if alt.text == "1"]
         score = np.exp(log_prob_score) if len(log_prob_score) == 1 else 0   # If the token "1" is not listed among the alternatives, assume score is 0
@@ -120,9 +126,12 @@ def formatted_prompt(prompt):
     return formatted_text
 
 # Set up the model
-version_num = int(args.adapter_version)
 if args.model_name == "prompt-injection-detection":
-    if version_num == 1 or version_num >= 15:
+    if version_num == 32 or version_num == 30:
+        base_model = "my-llama-3-2-1b-instruct"
+    elif version_num == 31:
+        base_model = "llama-3-70b-instruct"
+    elif version_num == 1 or version_num >= 15:
         base_model = "llama-3-1-8b-instruct"
     else:
         base_model = "llama-3-70b-instruct"
@@ -130,7 +139,7 @@ if args.model_name == "prompt-injection-detection":
 overall_model_name = f"{args.model_name}/{args.adapter_version}"
 model_str = f"model_v{args.adapter_version}"
 lorax_client = pb.deployments.client(base_model)
-print(f"Connected to Predibase client {overall_model_name}...\n")
+print(f"Connected to Predibase client {overall_model_name} with base model: {base_model}... \n")
 
 offset = int(args.offset)
 dataset_str = "evaluation_benchmark"

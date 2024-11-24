@@ -108,7 +108,7 @@ fpr_list, tpr_list, thre, auc_score = computeROC(scores_prompt_injection, labels
 interpolated_fnr = [interpolateROC(fpr_val, fpr_list, tpr_list) for fpr_val in low_fprs]
 with open(save_dir + "low_fprs.txt", "w") as f:
     for i in range(len(low_fprs)):
-        print(f"FNR at {low_fprs[i] * 100:g}% FPR is: {interpolated_fnr[i] * 100:g}%", file=f)
+        print(f"TPR at {low_fprs[i] * 100:g}% FPR is: {interpolated_fnr[i] * 100:g}%", file=f)
 
 # Plot and save ROC curve
 fig = plt.figure()

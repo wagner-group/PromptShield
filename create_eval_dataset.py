@@ -48,7 +48,7 @@ conversation_size = math.ceil(dataset_size / 6)
 # LMSYS
 lmsys_data_collection = LMSYS(dataset_split="train", toxicity_threshold=0.01)
 lmsys_subset_data, lmsys_subset_labels = lmsys_data_collection.create_subset_dataset(subset_amount=conversation_size)
-print("Created LMSYS...")
+print(f'Created LMSYS: {len(lmsys_subset_data)} datapoints.')
 
 #########################################################################
 #                 Setup closed-domain benign data...                    #
@@ -58,17 +58,17 @@ closed_domain_benign_size = math.ceil(dataset_size / 3)
 # Natural-Instructions
 ni_data_collection = NaturalInstructions(dataset_split="test")
 ni_subset_data, ni_subset_labels = ni_data_collection.create_subset_dataset(subset_amount=math.ceil(closed_domain_benign_size / 2))
-print("Created natural-instructions...")
+print(f'Created natural-instructions: {len(lmsys_subset_data)} datapoints.')
 
 # SPP
 spp_data_collection = SPP(dataset_split="train")
 spp_subset_data, spp_subset_labels = spp_data_collection.create_subset_dataset(subset_amount=math.ceil(closed_domain_benign_size / 4))
-print("Created SPP...")
+print(f'Created SPP: {len(spp_subset_data)} datapoints.')
 
 # DatabricksDolly
 databricks_data_collection = DatabricksDolly(dataset_split="train", data_type="closed_domain")
 databricks_subset_data, databricks_subset_labels = databricks_data_collection.create_subset_dataset(subset_amount=math.ceil(closed_domain_benign_size / 4))
-print("Created DatabricksDolly...")
+print(f'Created DatabricksDolly: {len(databricks_subset_data)} datapoints.')
 
 #########################################################################
 #                Setup closed-domain injection data...                  #
@@ -80,18 +80,18 @@ injection_random_seed=54321
 _ = spp_data_collection.create_subset_dataset(subset_amount=math.ceil(closed_domain_injection_size / 4), random_seed=injection_random_seed)
 struq_spp = StruQAttacks(seed_dataset_collection=spp_data_collection, dataset_partition="subset", dataset_status="test")
 struq_spp_data, struq_spp_labels = struq_spp.get_dataset()
-print("Created StruQ - SPP...")
+print(f'Created StruQ - SPP: {len(struq_spp_data)} datapoints.')
 
 # Struq - DatabricksDolly
 _ = databricks_data_collection.create_subset_dataset(subset_amount=math.ceil(closed_domain_injection_size / 4), random_seed=injection_random_seed)
 struq_databricks = StruQAttacks(seed_dataset_collection=databricks_data_collection, dataset_partition="subset", dataset_status="test")
 struq_databricks_data, struq_databricks_labels = struq_databricks.get_dataset()
-print("Created StruQ - DatabricksDolly...")
+print(f'Created StruQ - DatabricksDolly: {len(struq_spp_data)} datapoints.')
 
 # OpenPromptInjection
 opi_data_collection = OpenPromptInjection()
 opi_subset_data, opi_subset_labels = opi_data_collection.create_subset_dataset(subset_amount=math.ceil(closed_domain_injection_size / 2))
-print("Created OpenPromptInjection...")
+print(f'Created OpenPromptInjection: {len(opi_subset_data)} datapoints.')
 
 #########################################################################
 #                    Setup open-domain benign data...                   #
@@ -101,7 +101,7 @@ open_domain = math.ceil(dataset_size / 6)
 # DatabricksDolly open-domain
 databricks_open_data_collection = DatabricksDolly(dataset_split="train", data_type="open_domain")
 databricks_open_subset_data, databricks_open_subset_labels = databricks_open_data_collection.create_subset_dataset(subset_amount=open_domain)
-print("Created DatabricksDolly (open-domain)...")
+print(f'Created DatabricksDolly (open-domain): {len(databricks_open_subset_data)}')
 
 #########################################################################
 #                   Combine all datasets together...                    #
