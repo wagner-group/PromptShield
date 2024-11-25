@@ -117,7 +117,7 @@ def completion_realcmb(d_item, attack_text, dataset_status="test"):
     injection_link = np.random.choice(PROMPT_INJECTION_LINKS_TEST) if dataset_status == "test" else np.random.choice(PROMPT_INJECTION_LINKS_TRAIN)
     char = ('\n' if np.random.rand() < 0.5 else '\t') * np.random.choice(range(10))
     
-    d_item['input'] += '\n\n' + delimiter_response + d_item['output'] + '\n' + char + '\n' + delimiter_instruction + '\n' + injection_link + ' ' + attack_text
+    d_item['input'] += '\n\n' + d_item['output'] + '\n' + char + '\n' + '\n' + injection_link + ' ' + attack_text
     return d_item
 
 def completion_other(d_item, attack_text): 
@@ -143,7 +143,7 @@ def create_random_prompt_injected_llm_input(dataset_class, dataset, source, data
     random.seed(seed)
 
     # Specify different possible methods (types of attack) 
-    methods = [naive, ignore, completion_real]
+    methods = [naive, ignore, completion_real, completion_realcmb]
 
     malicious = []
 
