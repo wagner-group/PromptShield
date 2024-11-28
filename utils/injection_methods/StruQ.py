@@ -143,7 +143,7 @@ def create_random_prompt_injected_llm_input(dataset_class, dataset, source, data
     random.seed(seed)
 
     # Specify different possible methods (types of attack) 
-    methods = [ignore, completion_real, completion_realcmb]
+    methods = [naive, ignore, completion_real, completion_realcmb]
 
     malicious = []
 
