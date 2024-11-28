@@ -58,13 +58,24 @@ def evaluate_queries(data_collection, lorax_client, model_name, formatted_prompt
 
         # Query the lorax client and retrieve token scores
         #The predibase api fails when querying the details for Private Serverless Deployments
-        if version_num == 30 or version_num == 32:
-            response = lorax_client.generate(input_prompt, adapter_id=model_name, max_new_tokens=2, return_k_alternatives=10)
-        else:
-            response = lorax_client.generate(input_prompt, adapter_id=model_name, max_new_tokens=2, details=True, return_k_alternatives=10)
+        response = lorax_client.generate(input_prompt, adapter_id=model_name, max_new_tokens=2, return_k_alternatives=10)
         alternative_tokens = response.details.tokens[0].alternative_tokens
-        log_prob_score = [alt.logprob for alt in alternative_tokens if alt.text == "1"]
-        score = np.exp(log_prob_score) if len(log_prob_score) == 1 else 0   # If the token "1" is not listed among the alternatives, assume score is 0
+
+        #Workaround for when the alternative_tokens are none (predibase bug))
+        if(alternative_tokens == None):
+            first_token = response.details.tokens[0]
+            if first_token.text == "1":
+                score = np.exp(first_token.logprob)
+            elif first_token.text == "0":
+                zero_score = np.exp(first_token.logprob)
+                if  zero_score > 0.5:
+                    score = 1 - zero_score
+            else:
+                score = 0  
+        else:
+            log_prob_score = [alt.logprob for alt in alternative_tokens if alt.text == "1"]
+            score = np.exp(log_prob_score) if len(log_prob_score) == 1 else 0   # If the token "1" is not listed among the alternatives,
+
 
         # Incorporate the response for this conversation_id in a dictionary, add label to list of labels
         results[prompt_id] = {"user_prompt": user_prompt, "response": response.generated_text}

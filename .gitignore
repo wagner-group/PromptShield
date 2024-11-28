@@ -7,3 +7,4 @@ trained_models/
 .venv/
 env/
 outputs*
+nohup.out
