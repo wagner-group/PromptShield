@@ -110,7 +110,7 @@ print(f'Created StruQ - Alpaca: {struq_size} datapoints')
 #########################################################################
 #Alpaca 
 alpaca_open_data_collection = Alpaca("train", data_type="open_domain")
-alpaca_open_subset_data, alpaca_open_subset_labels = alpaca_closed_data_collection.create_subset_dataset(subset_amount=math.ceil(benign_datasets_size/2))
+alpaca_open_subset_data, alpaca_open_subset_labels = alpaca_open_data_collection.create_subset_dataset(subset_amount=math.ceil(benign_datasets_size/2))
 alpaca_open_size = len(alpaca_open_subset_data)
 print(f'Created benign alpaca open prompts: {alpaca_open_size} datapoints')
 
