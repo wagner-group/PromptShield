@@ -13,3 +13,6 @@ def computeROC(scores, labels):
 
 def interpolateROC(fpr_val, fpr_list, tpr_list):
     return np.interp(fpr_val, fpr_list, tpr_list)
+
+def interpolateThre(fpr_val, fpr_list, thre):
+    return np.interp(fpr_val, fpr_list, thre)

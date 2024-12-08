@@ -8,7 +8,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 from hashlib import sha256
-from utils.metrics import computeROC, interpolateROC
+from utils.metrics import computeROC, interpolateROC, interpolateThre
 
 parser = argparse.ArgumentParser(description='Plot ROC curve')
 
@@ -109,6 +109,12 @@ interpolated_fnr = [interpolateROC(fpr_val, fpr_list, tpr_list) for fpr_val in l
 with open(save_dir + "low_fprs.txt", "w") as f:
     for i in range(len(low_fprs)):
         print(f"TPR at {low_fprs[i] * 100:g}% FPR is: {interpolated_fnr[i] * 100:g}%", file=f)
+
+
+interpolated_thres = [interpolateThre(fpr_val, fpr_list, thre) for fpr_val in low_fprs]
+with open(save_dir + "thresholds.txt", "w") as f:
+    for i in range(len(low_fprs)):
+        print(f"Threshold at {low_fprs[i] * 100:.8f}% FPR is: {interpolated_thres[i] * 100:.8f}%", file=f)
 
 # Plot and save ROC curve
 fig = plt.figure()
