@@ -26,7 +26,7 @@ class BenchmarkDataset(GenericDataset):
 
   # Extract the prompt from the provided data point
   def extract_prompt(self, data):
-    user_prompt = data["instruction"] + "\n" + data["input"]
+    user_prompt = (data["instruction"] + "\n" + data["input"]) if data["input"] != "" else data["instruction"]
     return user_prompt
 
   # Create a dict object from the provided data point

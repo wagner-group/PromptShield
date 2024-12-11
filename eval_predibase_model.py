@@ -57,11 +57,10 @@ def evaluate_queries(data_collection, lorax_client, model_name, formatted_prompt
             continue 
 
         # Query the lorax client and retrieve token scores
-        #The predibase api fails when querying the details for Private Serverless Deployments
         response = lorax_client.generate(input_prompt, adapter_id=model_name, max_new_tokens=2, return_k_alternatives=10, temperature=0.0)
         alternative_tokens = response.details.tokens[0].alternative_tokens
 
-        #Workaround for when the alternative_tokens are none (predibase bug))
+        #Workaround for when the alternative_tokens are none (predibase bug)
         if(alternative_tokens == None):
             first_token = response.details.tokens[0]
             if first_token.text == "1":
