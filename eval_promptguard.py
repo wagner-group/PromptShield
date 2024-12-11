@@ -24,8 +24,7 @@ args = parser.parse_args()
 
 # Evaluation loop helper function
 def evaluate_batch(model, data_loader):
-
-    device = "cuda:2"
+    device = "cuda:1"
     model.to(device)
 
     # Initialize softmax
@@ -89,6 +88,7 @@ model = AutoModelForSequenceClassification.from_pretrained(model_id)
 model.eval()
 
 # Perform evaluation
+breakpoint()
 encoded_dataset = data_collection.convert2torch(tokenizer=tokenizer, dataset=dataset, labels=data_labels )
 data_loader = torch.utils.data.DataLoader(encoded_dataset, batch_size=int(args.batch_size))
 preds, scores_prompt_injection = evaluate_batch(model, data_loader)
