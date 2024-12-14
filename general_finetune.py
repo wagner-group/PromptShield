@@ -15,26 +15,43 @@ from transformers import get_scheduler
 
 parser = argparse.ArgumentParser(description='Fine-Tuning Torch Language Models')
 
-# Evaluation specifics
+# Fine-tuning specifics
+available_models = ["google/flan-t5-large", "google/flan-t5-base", "google/flan-t5-small", "microsoft/mdeberta-v3-base"]
+parser.add_argument('--model-name', choices=available_models, default="google/flan-t5-large")
+parser.add_argument('--lr', type=float, default=5e-4)
+
+# Misc.
 parser.add_argument('--trial', default=1)
-parser.add_argument('--batch-size', default=4)
+parser.add_argument('--batch-size', default=1)
+parser.add_argument('--device', default="cuda:0")
 
 args = parser.parse_args()
 
+# Save model checkpoints at this epoch
+def save_model_checkpoints(model, epoch, train_loss, val_loss, save_dir):
+    new_save_dir = save_dir + f"epoch_{epoch}/"
+    Path(new_save_dir).mkdir(parents=True, exist_ok=True)
+    model.save_pretrained(new_save_dir, from_pt=True)
+
+    with open(new_save_dir + "model_metrics.txt", "w") as f:
+        f.write(f"==========EPOCH {epoch}==========\n")
+        f.write(f"avg per sample train loss: {train_loss}\n")
+        f.write(f"avg per sample val loss: {val_loss}\n")
+
 # Training loop helper function
-def train_batch(model, train_data_loader, val_data_loader):
-    train_data_loader_len = len(train_data_loader.dataset[0])
+def train_batch(model, train_data_loader, val_data_loader, args):
+    train_data_loader_len = len(train_data_loader.dataset)
     val_loss_arr = []
     train_loss_arr = []
     
     # Hyperparameters
-    lr = 5e-6
+    lr = args.lr
     num_epochs = 3
     num_training_steps = num_epochs * len(train_data_loader)
     criterion = torch.nn.CrossEntropyLoss()
 
     # Initialize optimizers
-    device = "cuda:0"
+    device = args.device
     model.to(device)
     optimizer = AdamW(model.parameters(), lr = lr)
     lr_scheduler = get_scheduler(name="linear", optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
@@ -47,8 +64,8 @@ def train_batch(model, train_data_loader, val_data_loader):
 
         tqdm._instances.clear()
         progress_bar = tqdm(range(len(train_data_loader)), position=0, leave=True, ascii=True)
-        print(f"\nEpoch [{epoch}/{train_data_loader}]")
-        for index, batch in enumerate(data_loader):
+        print(f"\nEpoch [{epoch}/{num_epochs}]")
+        for index, batch in enumerate(train_data_loader):
             batch = [b.to(device) for b in batch]
             input_ids, attention_mask, labels = batch
 
@@ -65,23 +82,29 @@ def train_batch(model, train_data_loader, val_data_loader):
             lr_scheduler.step()
             progress_bar.update(1)
         
-        train_loss_arr.append(train_loss_total.cpu().numpy() / train_data_loader_len)
-        val_loss_arr.append(val_batch(model, val_data_loader))
+        train_loss_value = train_loss_total.detach().cpu().numpy() / train_data_loader_len
+        val_loss_value = val_batch(model, val_data_loader, args)
+        train_loss_arr.append(train_loss_value)
+        val_loss_arr.append(val_loss_value)
+
+        # Save model checkpoints at this epoch
+        save_model_checkpoints(model, epoch, train_loss_value, val_loss_value, args.save_dir)
 
     return model, train_loss_arr, val_loss_arr
 
 # Validation loop helper function
-def val_batch(model, val_data_loader):
-    val_data_loader_len = len(val_data_loader.dataset[0])
+def val_batch(model, val_data_loader, args):
+    val_data_loader_len = len(val_data_loader.dataset)
     val_loss_total = 0.0
     
     criterion = torch.nn.CrossEntropyLoss()
-    device = "cuda:0"
+    device = args.device
     model.to(device)
 
     # Initiate loop
     preds = []
     model.eval()
+
     print("\nStarting the validation process...")
     tqdm._instances.clear()
     progress_bar = tqdm(range(len(val_data_loader)), position=0, leave=True, ascii=True)
@@ -91,10 +114,9 @@ def val_batch(model, val_data_loader):
 
         with torch.no_grad():
             logits = model(input_ids = input_ids, attention_mask = attention_mask).logits
-        
+
         # Compute validation loss
         val_loss = criterion(logits, labels.long())
-
         val_loss_total += (val_loss * len(labels))
         progress_bar.update(1)
 
@@ -103,13 +125,13 @@ def val_batch(model, val_data_loader):
 # System prompt not needed when training with <1B param models
 batch_size = args.batch_size
 
-# Load model - possibilities are "google/flan-t5-large", "google/flan-t5-base", "google/flan-t5-small", and "microsoft/mdeberta-v3-base"
+# Load model
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from utils.data_collections.benchmark_datasets import BenchmarkDataset
 
-model_id = "google/flan-t5-large"
+model_id = args.model_name
 tokenizer = AutoTokenizer.from_pretrained(model_id, use_fast=False)
-model = AutoModelForSequenceClassification.from_pretrained(model_id, trust_remote_code=True)
+model = AutoModelForSequenceClassification.from_pretrained(model_id, num_labels=2, trust_remote_code=True)
 model.eval()
 
 # Custom datset processing
@@ -123,30 +145,29 @@ dataset, data_labels = data_collection.get_dataset()
 print(f"There are a total of {len(dataset)} datapoints...\n")
 encoded_dataset = data_collection.convert2torch(tokenizer=tokenizer, dataset=dataset, labels=data_labels)
 
+# Because the model_max_length is 512 for the Flan models, we remove all data with more than 512 tokens; we filter
+# using the attention masks from the tokenizer
+filtered_idx = [i for i in range(len(encoded_dataset)) if torch.sum(encoded_dataset[i][1]) < 512]
+encoded_dataset = torch.utils.data.Subset(encoded_dataset, filtered_idx)
+
 # Create a small validation set
 rng = np.random.default_rng(12345)
 idx_list = np.arange(len(encoded_dataset))
 val_idx = rng.choice(idx_list, 1000, replace=False)
 train_idx = np.array(list(set(idx_list) - set(val_idx)))
 
-val_data_loader = torch.utils.data.DataLoader(encoded_dataset[val_idx], batch_size=int(batch_size), shuffle=False)
-train_data_loader = torch.utils.data.DataLoader(encoded_dataset[train_idx], batch_size=int(batch_size), shuffle=True)
+val_data_loader = torch.utils.data.DataLoader(torch.utils.data.Subset(encoded_dataset, val_idx), batch_size=int(batch_size), shuffle=False)
+train_data_loader = torch.utils.data.DataLoader(torch.utils.data.Subset(encoded_dataset, train_idx), batch_size=int(batch_size), shuffle=True)
 
 # Create a folder in which to save results
 todaystring = date.today().strftime("%Y-%m-%d")
-save_dir = f"small_finetuned_models/{todaystring}/{model_id}/trial_{args.trial}/"
-Path(save_dir).mkdir(parents=True, exist_ok=True)
+args.save_dir = f"small_finetuned_models/{todaystring}/{model_id}/trial_{args.trial}_lr_{args.lr}/"
+Path(args.save_dir).mkdir(parents=True, exist_ok=True)
 
 # Perform training and validation
-model, train_loss_arr, val_loss_arr = train_batch(model, train_data_loader, val_data_loader)
+model, train_loss_arr, val_loss_arr = train_batch(model, train_data_loader, val_data_loader, args)
 
-# Save the trained model and metrics
-model.save_pretrained(save_dir, from_pt=True)
+# Save the final metrics
 print(f"train_loss_arr: {train_loss_arr}\n")
 print(f"val_loss_arr: {val_loss_arr}")
-with open(save_dir + "model_metrics.txt", "w") as f:
-    for idx in np.arange(len(train_loss_arr)):
-        f.write(f"==========EPOCH {idx}==========\n")
-        f.write(f"avg per sample train loss: {train_loss_arr[idx]}\n")
-        f.write(f"avg per sample val loss: {val_loss_arr[idx]}\n")
 
