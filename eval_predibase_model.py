@@ -136,9 +136,9 @@ def formatted_prompt(prompt):
 
 # Set up the model
 if args.model_name == "prompt-injection-detection":
-    if version_num == 32 or version_num == 30 or version_num == 37:
+    if version_num == 32 or version_num == 30 or version_num == 37 or version_num == 56:
         base_model = "my-llama-3-2-1b-instruct"
-    elif version_num == 31 or version_num == 36:
+    elif version_num == 31 or version_num == 36 or version_num == 57:
         base_model = "llama-3-70b-instruct"
     elif version_num == 1 or version_num >= 15:
         base_model = "llama-3-1-8b-instruct"
