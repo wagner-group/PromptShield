@@ -61,13 +61,15 @@ else:
 
 # Set up save path
 todaystring = date.today().strftime("%Y-%m-%d")
-save_dir = f"eval_plots/{dataset_name}/{todaystring}/trial_{args.trial}_{model_name}/"
+save_dir = f"{args.output_dir}/plots/"
 Path(save_dir).mkdir(parents=True, exist_ok=True)
 
 # Convert to numpy
 dataset_names = np.array(dataset_name_list)
 scores_prompt_injection = np.array(scores_prompt_injection)
 labels = np.array(labels).astype("int")
+
+breakpoint()
 
 #########################################################################
 #                           Plotting stage...                           #

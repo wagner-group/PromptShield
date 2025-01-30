@@ -2,6 +2,8 @@ cached_outputs/
 dataset_evals/
 eval_plots/
 trained_models/
+small_finetuned_models/
+baseline_evals/
 *.pyc
 **/.DS_Store
 .venv/

@@ -16,7 +16,8 @@ from .generics import GenericDataset, loadDatasetJSON
 # Loads the JSON-formatted version of a benchmark dataset
 class BenchmarkDataset(GenericDataset):
   # Set up benchmark dataset by reading from a JSON file
-  def __init__(self, filepath):
+  def __init__(self, filepath, dataset_partition="train"):
+    self.dataset_partition = dataset_partition
     loaded_dataset = loadDatasetJSON(filepath)
 
     # Create training labels associated with the prompt injection detection task
@@ -26,7 +27,12 @@ class BenchmarkDataset(GenericDataset):
 
   # Extract the prompt from the provided data point
   def extract_prompt(self, data):
-    user_prompt = (data["instruction"] + "\n" + data["input"]) if data["input"] != "" else data["instruction"]
+    # For training, leave the "\n" character. For evaluation, we remove it
+    if self.dataset_partition == "train":
+      user_prompt = data["instruction"] + "\n" + data["input"]
+    elif self.dataset_partition == "test":
+      user_prompt = (data["instruction"] + "\n" + data["input"]) if data["input"] != "" else data["instruction"]
+
     return user_prompt
 
   # Create a dict object from the provided data point

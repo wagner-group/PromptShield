@@ -57,9 +57,9 @@ def train_batch(model, train_data_loader, val_data_loader, args):
     lr_scheduler = get_scheduler(name="linear", optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
 
     # Initiate training loop
-    model.train()
     print("Starting the fine-tuning process...")
     for epoch in range(num_epochs):
+        model.train()   # Enter training mode
         train_loss_total = 0.0
 
         tqdm._instances.clear()
@@ -82,6 +82,7 @@ def train_batch(model, train_data_loader, val_data_loader, args):
             lr_scheduler.step()
             progress_bar.update(1)
         
+        model.eval() # Enter evaluation mode
         train_loss_value = train_loss_total.detach().cpu().numpy() / train_data_loader_len
         val_loss_value = val_batch(model, val_data_loader, args)
         train_loss_arr.append(train_loss_value)
@@ -102,8 +103,8 @@ def val_batch(model, val_data_loader, args):
     model.to(device)
 
     # Initiate loop
-    preds = []
     model.eval()
+    preds = []
 
     print("\nStarting the validation process...")
     tqdm._instances.clear()
@@ -161,7 +162,7 @@ train_data_loader = torch.utils.data.DataLoader(torch.utils.data.Subset(encoded_
 
 # Create a folder in which to save results
 todaystring = date.today().strftime("%Y-%m-%d")
-args.save_dir = f"small_finetuned_models/{todaystring}/{model_id}/trial_{args.trial}_lr_{args.lr}/"
+args.save_dir = f"small_finetuned_models/small_finetuned_models/{todaystring}/{model_id}/trial_{args.trial}_lr_{args.lr}/"
 Path(args.save_dir).mkdir(parents=True, exist_ok=True)
 
 # Perform training and validation

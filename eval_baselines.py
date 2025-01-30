@@ -10,23 +10,26 @@ from utils.metrics import computeROC
 from utils.data_collections.benchmark_datasets import BenchmarkDataset
 
 import torch
+from torch.utils.data import Subset, Dataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 parser = argparse.ArgumentParser(description='Fmops/distilbert-prompt-injection Model Evaluation')
 
 # Evaluation specifics
-parser.add_argument('--offset', default=0)
+parser.add_argument('--model', default="promptguard", choices=["promptguard", "protectai-v1", "protectai-v2", "fmops"])
+
+# Misc.
 parser.add_argument('--trial', default=1)
 parser.add_argument('--batch-size', default=1)
+parser.add_argument('--device', default="cuda:0")
 parser.add_argument('--file-date', default="")
-parser.add_argument('--model', default="promptguard", choices=["promptguard", "protectai-v1", "protectai-v2", "fmops"])
 
 args = parser.parse_args()
 
 # Evaluation loop helper function
-def evaluate_batch(model, data_loader):
+def evaluate_batch(model, eval_data_loader, args):
 
-    device = "cuda:2"
+    device = args.device
     model.to(device)
 
     # Initialize softmax
@@ -38,8 +41,8 @@ def evaluate_batch(model, data_loader):
     model.eval()
     print("\nStarting the evaluation process...")
     tqdm._instances.clear()
-    progress_bar = tqdm(range(len(data_loader)), position=0, leave=True, ascii=True)
-    for index, batch in enumerate(data_loader):
+    progress_bar = tqdm(range(len(eval_data_loader)), position=0, leave=True, ascii=True)
+    for index, batch in enumerate(eval_data_loader):
         batch = [b.to(device) for b in batch]
         input_ids, attention_mask, _ = batch
 
@@ -47,14 +50,13 @@ def evaluate_batch(model, data_loader):
             logits = model(input_ids = input_ids, attention_mask = attention_mask).logits
 
         normalized_logits = softmax(logits, dim=1)
+        score = normalized_logits[:, -1].cpu().numpy()
         
         # Determine predicted class, ignoring the distinction between "benign" and "injection" in promptquard
         if args.model == "promptguard":
             predicted_class_id = (logits.argmax(dim=1).cpu().numpy() > 1).astype(int)
         else:
             predicted_class_id = (logits.argmax(dim=1).cpu().numpy()).astype(int)
-
-        score = normalized_logits[:, -1].cpu().numpy()
 
         # Add values to overall list
         preds.extend(predicted_class_id)
@@ -63,30 +65,16 @@ def evaluate_batch(model, data_loader):
 
     return preds, scores_prompt_injection
 
-
-offset = int(args.offset)
 dataset_str = "evaluation_benchmark"
+batch_size = args.batch_size
 
 # Create a folder in which to save results
 model_str = args.model
 todaystring = date.today().strftime("%Y-%m-%d")
-save_dir = f"dataset_evals/{dataset_str}/{todaystring}/trial_{args.trial}_{model_str}_offset_{offset}/"
+save_dir = f"baseline_evals/{model_str}/{dataset_str}/{todaystring}/trial_{args.trial}/"
 Path(save_dir).mkdir(parents=True, exist_ok=True)
 
-# Set up dataset
-if args.file_date == "":
-    benchmark_file = f"data/evaluation_data/{todaystring}/{todaystring}_evaluation_benchmark.json"
-else:
-    benchmark_file = f"data/evaluation_data/{args.file_date}/{args.file_date}_evaluation_benchmark.json"
-
-try:
-    data_collection = BenchmarkDataset(benchmark_file)
-except:
-    print("Benchmark file not found, enter correct date (--file-date=2024-10-20)")
-    raise
-dataset, data_labels = data_collection.get_dataset()
-print(f"There are a total of {len(dataset)} datapoints...\n")
-
+# Set up the model
 if args.model == "promptguard":
     model_id = "meta-llama/Prompt-Guard-86M"
 elif args.model == "protectai-v1":
@@ -99,32 +87,38 @@ else:
     print("Unknown model")
     raise
 
-# Load the model
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 model = AutoModelForSequenceClassification.from_pretrained(model_id)
 model.eval()
 
 print(f"Evaluating {model_str} hf model id: {model_id} ...\n")
 
+# Set up dataset
+if args.file_date == "":
+    benchmark_file = "/home/dennis/prompt-injection-detection/data/evaluation_data/2024-11-28/2024-11-28_evaluation_benchmark.json"
+else:
+    benchmark_file = f"data/evaluation_data/{args.file_date}/{args.file_date}_evaluation_benchmark.json"
+
+try:
+    data_collection = BenchmarkDataset(benchmark_file, dataset_partition="test")
+except:
+    print("Benchmark file not found, enter correct date (--file-date=2024-10-20)")
+    raise
+dataset, data_labels = data_collection.get_dataset()
+print(f"There are a total of {len(dataset)} datapoints...\n")
+encoded_dataset = data_collection.convert2torch(tokenizer=tokenizer, dataset=dataset, labels=data_labels)
+
 # Perform evaluation
-encoded_dataset = data_collection.convert2torch(tokenizer=tokenizer, dataset=dataset, labels=data_labels )
-data_loader = torch.utils.data.DataLoader(encoded_dataset, batch_size=int(args.batch_size))
-preds, scores_prompt_injection = evaluate_batch(model, data_loader)
+eval_data_loader = torch.utils.data.DataLoader(encoded_dataset, batch_size=int(batch_size), shuffle=False)
+preds, scores_prompt_injection = evaluate_batch(model, eval_data_loader, args)
 
 # Visualization
 labels = (data_collection.get_labels()).numpy()
-fig = plt.figure(1)
-cm = confusion_matrix(labels, np.array(preds), labels=[0, 1])
-disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["benign", "injection"])
-disp.plot().figure_.savefig(save_dir + 'confusion_matrix.png', bbox_inches='tight')
+# fig = plt.figure(1)
+# cm = confusion_matrix(labels, np.array(preds), labels=[0, 1])
+# disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["benign", "injection"])
+# disp.plot().figure_.savefig(save_dir + 'confusion_matrix.png', bbox_inches='tight')
 
 # Save scores
-outputs = {"model_name": model_str, "dataset_name": dataset_str, "scores_prompt_injection": scores_prompt_injection, "labels": labels}
-outputs_dir = f"cached_outputs/{dataset_str}/{todaystring}/trial_{args.trial}_{model_str}/"
-Path(outputs_dir).mkdir(parents=True, exist_ok=True)
-np.savez(outputs_dir + f"{model_str}_{dataset_str}_outputs.npz", **outputs)
-
-# save into npz the scores + fpr associated with this
-# make a script which reads from dict and can combine multiple dict and then create ROC
-# add support for predibase model
-# figure out openai structure outputs
+outputs = {"model_name": model_str, "dataset_name": dataset_str, "scores_prompt_injection": scores_prompt_injection, "preds": preds, "labels": labels}
+np.savez(save_dir + f"{dataset_str}_outputs.npz", **outputs)
