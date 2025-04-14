@@ -1,6 +1,6 @@
 import json
 
-filepath = "2024-11-28_evaluation_benchmark.json"
+filepath = "2024-11-28_evaluation_benchmark_en.json"
 
 with open(filepath, encoding='utf-8') as data_file:
     datasetJSON = list(json.loads(data_file.read()))
@@ -10,7 +10,7 @@ chat_data = []
 app_data = []
 
 for datapoint in datasetJSON:
-    if datapoint['source'] == "LMSYS":
+    if datapoint['source'] == "LMSYS" or datapoint['type'] == "Benign - open_domain":
         chat_data.append(datapoint)
     else:
         app_data.append(datapoint)

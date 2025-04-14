@@ -106,17 +106,59 @@ save_score_histogram(ax_tn, "Injection scores for TN", save_dir + "scores_tn_his
 
 # Create ROC curve
 low_fprs = [0.0005, 0.001, 0.005, 0.01]
+num_targets = len(low_fprs)
 fpr_list, tpr_list, thre, auc_score = computeROC(scores_prompt_injection, labels)
-interpolated_fnr = [interpolateROC(fpr_val, fpr_list, tpr_list) for fpr_val in low_fprs]
-with open(save_dir + "low_fprs.txt", "w") as f:
-    for i in range(len(low_fprs)):
-        print(f"TPR at {low_fprs[i] * 100:g}% FPR is: {interpolated_fnr[i] * 100:g}%", file=f)
 
+def compute_FPR(preds, labels):
+    FP = np.sum((preds - labels) == 1)
+    TN = np.sum((preds + labels) == 0)
+    return FP / (FP + TN)
+
+# Bisection scheme to find threshold that results in target FPR
+def find_FPR_threshold(scores, labels, target_FPR, tolerance):
+    low_thre = 0.0
+    high_thre = 1.0
+
+    for iteration in range(50):
+        mid_thre = (low_thre + high_thre) / 2
+        preds = (scores > mid_thre).astype("int")
+        computed_FPR = compute_FPR(preds, labels)
+
+        if np.abs(computed_FPR - target_FPR) < (tolerance * target_FPR):
+            return mid_thre, computed_FPR 
+        elif computed_FPR > target_FPR:
+            low_thre = mid_thre
+        else:
+            high_thre = mid_thre 
+
+    # If the loop completes without finding a threshold, return the last computed threshold
+    return mid_thre, computed_FPR
 
 interpolated_thres = [interpolateThre(fpr_val, fpr_list, thre) for fpr_val in low_fprs]
-with open(save_dir + "thresholds.txt", "w") as f:
-    for i in range(len(low_fprs)):
-        print(f"Threshold at {low_fprs[i] * 100:.8f}% FPR is: {interpolated_thres[i] * 100:.8f}%", file=f)
+tolerance = 0.25
+with open(save_dir + "thresholds_with_tolerance2.txt", "w") as f:
+    for i in range(num_targets):
+        initial_thres = interpolated_thres[i]
+        preds = (scores_prompt_injection > initial_thres).astype("int")
+        computed_FPR = compute_FPR(preds, labels)
+
+        # Ensure that the thresholds result in a FPR value that is within 10% of the target
+        if np.abs(computed_FPR - low_fprs[i]) > (tolerance * low_fprs[i]):
+            initial_thres, computed_FPR = find_FPR_threshold(scores_prompt_injection, labels, low_fprs[i], tolerance)
+            interpolated_thres[i] = initial_thres
+
+        print(f"Threshold at target {low_fprs[i] * 100:.8f}% FPR and computed {computed_FPR * 100:.8f}% FPR is: {interpolated_thres[i] * 100:.8f}%", file=f)
+
+# Compute TPR using interpolated thresholds
+# computed_tpr_list = interpolateROC(fpr_list, tpr_list, low_fprs)
+with open(save_dir + "low_fprs_with_tolerance2.txt", "w") as f:
+    for i in range(num_targets):
+        preds = (scores_prompt_injection > interpolated_thres[i]).astype("int")
+        FN = np.sum((preds - labels) == -1)
+        TP = np.sum((preds + labels) == 2)
+        computed_TPR = TP / (TP + FN)
+
+        print(f"TPR at target {low_fprs[i] * 100:g}% FPR is: {computed_TPR * 100:g}%", file=f)
 
 # Plot and save ROC curve
 fig = plt.figure()

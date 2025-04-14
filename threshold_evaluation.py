@@ -73,15 +73,23 @@ labels = np.array(labels).astype("int")
 #########################################################################
 #                           Plotting stage...                           #
 #########################################################################
+######################################################################
+#------------------------
+#Thresholds from evaluating app-only dataset (table 8)
+#Model 76:
+# Threshold at target 0.05000000% FPR and computed 0.04207869% FPR is: 99.99975261%
+# Threshold at target 0.10000000% FPR and computed 0.09467705% FPR is: 99.99966320%
+# Threshold at target 0.50000000% FPR and computed 0.48390490% FPR is: 99.99904913%
+# Threshold at target 1.00000000% FPR and computed 0.99936882% FPR is: 99.99796083%
 
-#Thresholds from evaluating app-only dataset
-# Threshold at 0.05000000% FPR is: 99.99998290%
-# Threshold at 0.10000000% FPR is: 99.99996549%
-# Threshold at 0.50000000% FPR is: 99.99954248%
-# Threshold at 1.00000000% FPR is: 99.99235691%
+#Model 77:
+# Threshold at target 0.05000000% FPR and computed 0.04207869% FPR is: 99.99910888%
+# Threshold at target 0.10000000% FPR and computed 0.09467705% FPR is: 99.99896877%
+# Threshold at target 0.50000000% FPR and computed 0.49442457% FPR is: 99.99459925%
+# Threshold at target 1.00000000% FPR and computed 0.99936882% FPR is: 99.95612916%
 
 low_fprs = ["0.05", "0.1", "0.5", "1"]
-interpolated_thres = [0.9999998290, 0.9999996549, 0.9999954248, 0.9999235691]
+interpolated_thres = [0.9999975261, 0.9999966320, 0.9999904913, 0.9999796083]
 
 results = []
 
