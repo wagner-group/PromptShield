@@ -1,8 +1,18 @@
 small_finetuned_models/
 baseline_evals/
 *.pyc
+__pycache__/
+**/__pycache__/
 **/.DS_Store
 .venv/
 env/
 outputs*
 nohup.out
+
+# Credentials and secrets
+.env
+.env.*
+*.key
+*.pem
+credentials.json
+*_credentials.json
