@@ -44,3 +44,30 @@ class BenchmarkDataset(GenericDataset):
   
   def get_labels(self):
     return self.labels
+  
+# Loads the JSON-formatted version of a benchmark dataset when field is only "prompt"
+class BenchmarkDatasetPrompt(GenericDataset):
+  # Set up benchmark dataset by reading from a JSON file
+  def __init__(self, filepath):
+    loaded_dataset = loadDatasetJSON(filepath)
+
+    # Create training labels associated with the prompt injection detection task
+    labels = torch.Tensor(loaded_dataset["label"])
+
+    super().__init__(loaded_dataset, labels, "benchmark_dataset")
+
+  # Extract the prompt from the provided data point
+  def extract_prompt(self, data):
+    # For training, leave the "\n" character. For evaluation, we remove it
+
+    return data["prompt"]
+
+  # Create a dict object from the provided data point
+  def get_dict(self, data):
+    return data
+
+  def get_label(self, data):
+    return data['label']
+  
+  def get_labels(self):
+    return self.labels

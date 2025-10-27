@@ -15,7 +15,7 @@
 
 # Model parameters
 MODEL_NAME="google/flan-t5-large"
-MODEL_PATH="/home/dennis/prompt-injection-detection/small_finetuned_models/small_finetuned_models/2024-12-14/google/flan-t5-large/trial_2_lr_5e-05/epoch_1"
+MODEL_PATH="/home/dennis/prompt-injection-detection/small_finetuned_models/small_finetuned_models/2025-03-26/google/flan-t5-large/trial_with_newline_train_lr_5e-05/epoch_1"
 
 # Misc.
 TRIAL=2

@@ -95,7 +95,7 @@ print(f"Evaluating {model_str} hf model id: {model_id} ...\n")
 
 # Set up dataset
 if args.file_date == "":
-    benchmark_file = "/home/dennis/prompt-injection-detection/data/evaluation_data/2024-11-28/2024-11-28_evaluation_benchmark.json"
+    benchmark_file = "/home/dennis/prompt-injection-detection/camera_ready_datasets/en_dataset_no_dups/2024-11-28_evaluation_benchmark_en.json"
 else:
     benchmark_file = f"data/evaluation_data/{args.file_date}/{args.file_date}_evaluation_benchmark.json"
 

@@ -72,7 +72,7 @@ model = AutoModelForSequenceClassification.from_pretrained(args.model_path, num_
 model.eval()
 
 # Custom datset processing - don't need to worry about filtering the dataset for evaluation
-benchmark_file = "/home/dennis/prompt-injection-detection/data/evaluation_data/2024-11-28/2024-11-28_evaluation_benchmark.json"
+benchmark_file = "/home/dennis/prompt-injection-detection/camera_ready_datasets/en_dataset_no_dups/2024-11-28_evaluation_benchmark_en.json"
 try:
     data_collection = BenchmarkDataset(benchmark_file, dataset_partition="test")
 except:

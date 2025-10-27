@@ -107,6 +107,7 @@ save_score_histogram(ax_tn, "Injection scores for TN", save_dir + "scores_tn_his
 # Create ROC curve
 low_fprs = [0.0005, 0.001, 0.005, 0.01]
 num_targets = len(low_fprs)
+num_targets = len(low_fprs)
 fpr_list, tpr_list, thre, auc_score = computeROC(scores_prompt_injection, labels)
 
 def compute_FPR(preds, labels):
